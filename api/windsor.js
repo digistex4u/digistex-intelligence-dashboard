@@ -57,7 +57,7 @@ export default async function handler(req, res) {
       if (date_preset) qs.set('date_preset', date_preset);
       if (date_from) qs.set('date_from', date_from);
       if (date_to) qs.set('date_to', date_to);
-      if (accounts) qs.set('accounts', accounts);
+      if (accounts) { qs.set('accounts', accounts); qs.set('account_id', accounts); }
       Object.entries(rest).forEach(([k, v]) => { if (v) qs.set(k, v); });
       // Use connector-specific path or /all for blended
       const path = connector || 'all';
