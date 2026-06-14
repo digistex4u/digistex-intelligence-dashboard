@@ -259,18 +259,19 @@ $('selView').classList.add('hidden');$('dash').classList.remove('hidden');$('hTi
 
 async function loadData(accId,connType){
   const conn=connType||'facebook';
+  const accFilter=r=>{if(!r.account_id)return true;return String(r.account_id)===String(accId)};
   S.loading={ads90d:true,ads28d:true,ads7d:true,shopify:!!S.shop};rLoad();
-  // Ad platform 90d daily
-  wdData(conn,['date','spend','impressions','clicks','ctr','cpm','actions_purchase','action_values_purchase','actions_add_to_cart','actions_initiate_checkout','frequency','reach'],{date_preset:'last_60d',accounts:accId}).then(res=>{
-    const arr=res?.data||res||[];S.data.meta90d=Array.isArray(arr)?arr:[];S.data.periods=proc3P(S.data.meta90d);S.data.weekly=procWeekly(S.data.meta90d);S.loading.ads90d=false;rLoad();rContent()});
+  // Ad platform 60d daily
+  wdData(conn,['date','account_id','spend','impressions','clicks','ctr','cpm','actions_purchase','action_values_purchase','actions_add_to_cart','actions_initiate_checkout','frequency','reach'],{date_preset:'last_60d',accounts:accId}).then(res=>{
+    const arr=(res?.data||res||[]).filter(accFilter);S.data.meta90d=Array.isArray(arr)?arr:[];S.data.periods=proc3P(S.data.meta90d);S.data.weekly=procWeekly(S.data.meta90d);S.loading.ads90d=false;rLoad();rContent()});
   // Ad platform 28d ad-level
-  wdData(conn,['ad_name','ad_id','campaign','adset_name','effective_status','spend','impressions','clicks','ctr','cpm','frequency','reach','actions_add_to_cart','actions_initiate_checkout','actions_purchase','action_values_purchase','website_destination_url'],{date_preset:'last_28d',accounts:accId}).then(res=>{
-    const arr=Array.isArray(res?.data||res)?res?.data||res:[];S.data.meta28d=arr;
+  wdData(conn,['ad_name','ad_id','campaign','adset_name','effective_status','account_id','spend','impressions','clicks','ctr','cpm','frequency','reach','actions_add_to_cart','actions_initiate_checkout','actions_purchase','action_values_purchase','website_destination_url'],{date_preset:'last_28d',accounts:accId}).then(res=>{
+    const arr=(Array.isArray(res?.data||res)?res?.data||res:[]).filter(accFilter);S.data.meta28d=arr;
     const tS=arr.reduce((s,a)=>s+sf(a.spend),0),tI=arr.reduce((s,a)=>s+sf(a.impressions),0),tC=arr.reduce((s,a)=>s+sf(a.clicks),0);
     S.data.scored=arr.filter(a=>sf(a.impressions)>=100).map(a=>scoreAd(a,tI>0?tS/tI*1000:300,tI>0?tC/tI:.03));S.loading.ads28d=false;rLoad();rContent()});
   // Ad platform 7d daily ad-level
-  wdData(conn,['date','ad_id','ad_name','spend','impressions','clicks','ctr','cpm','frequency','reach','actions_purchase','action_values_purchase','effective_status'],{date_preset:'last_7d',accounts:accId}).then(res=>{
-    const arr=Array.isArray(res?.data||res)?res?.data||res:[];S.data.meta7d=arr;S.data.fatigue=procFatigue(arr);S.loading.ads7d=false;rLoad();rContent()});
+  wdData(conn,['date','ad_id','ad_name','account_id','spend','impressions','clicks','ctr','cpm','frequency','reach','actions_purchase','action_values_purchase','effective_status'],{date_preset:'last_7d',accounts:accId}).then(res=>{
+    const arr=(Array.isArray(res?.data||res)?res?.data||res:[]).filter(accFilter);S.data.meta7d=arr;S.data.fatigue=procFatigue(arr);S.loading.ads7d=false;rLoad();rContent()});
   // Shopify
   if(S.shop){wdData('shopify',['date','order_count','order_total_price','order_gross_sales','order_net_sales','order_financial_status','order_cancel_reason','order_return_status','order_sales_channel','order_quantity','order_shipping_province','order_billing_province'],{date_preset:'last_90d',date_filters:JSON.stringify({orders:'createdAt'})}).then(res=>{
     S.data.shop90d=Array.isArray(res?.data||res)?res?.data||res:[];S.loading.shopify=false;rLoad();rContent()})}
