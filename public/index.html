@@ -171,18 +171,22 @@ let bk=t>=75?'SCALE':t>=55?'OPTIMIZE':t>=35?'WATCH':'KILL';if(spend>1000&&sf(ad.
 return{...ad,score:t,bucket:bk,roas,hookRate:hr,atcRate:atcR,freq,spend,collection:exColl(ad.website_destination_url)};}
 
 // ═══ STATE ═══
-let S={accounts:[],metaAccs:[],shopAccs:[],sel:null,shop:null,brand:'',tab:'scorecard',loading:{},
+let S={accounts:[],adAccs:[],shopAccs:[],sel:null,shop:null,brand:'',tab:'scorecard',loading:{},
   data:{meta90d:null,meta28d:null,meta7d:null,shop90d:null,periods:null,weekly:null,fatigue:null,scored:null}};
 const TABS=[{id:'scorecard',l:'Scorecard'},{id:'rolling',l:'90-Day Rolling'},{id:'weekly',l:'Weekly Cycles'},{id:'fatigue',l:'Ad Fatigue'},{id:'collections',l:'Collections'},{id:'states',l:'State Analysis'},{id:'creatives',l:'Creative Intel'}];
 
 // ═══ RENDER ═══
 function rAccs(){const g=$('accGrid'),ld=$('loader'),rb=$('retryBtn'),sn=$('shopNote');
-if(S.metaAccs.length>0){ld.classList.add('hidden');g.classList.remove('hidden');g.innerHTML=S.metaAccs.map((a,i)=>`<div class="acc-card" onclick="pickAcc(${i})"><div style="font-weight:600;font-size:15px">${a.name||a.account_name||'Meta Account'}</div><div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px">ID: ${a.account_id||a.id||'—'}</div><div style="font-family:var(--mono);font-size:10px;color:var(--saffron);margin-top:8px">Click to analyze →</div></div>`).join('');
-if(S.shopAccs.length){sn.classList.remove('hidden');sn.textContent='Shopify: '+S.shopAccs.map(s=>s.name||s.id).join(', ')+' (auto-matched)'}}
-else{ld.innerHTML='<div style="color:var(--saffron2);font-family:var(--mono)">No Meta accounts found</div><div style="color:var(--dim);font-size:12px;margin-top:6px">Check Windsor.ai connection</div>';rb.classList.remove('hidden')}}
+if(S.adAccs.length>0){ld.classList.add('hidden');g.classList.remove('hidden');
+const platColors={facebook:'var(--blue)',google_ads:'var(--green)',amazon_sp:'var(--saffron2)'};
+const platLabels={facebook:'Meta Ads',google_ads:'Google Ads',amazon_sp:'Amazon SP'};
+g.innerHTML=S.adAccs.map((a,i)=>{const pl=a.connector||'unknown';const plCol=platColors[pl]||'var(--muted)';const plLabel=platLabels[pl]||pl;
+return`<div class="acc-card" onclick="pickAcc(${i})"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600;font-size:15px">${a.name||a.account_name||'Account'}</div><span class="badge" style="background:${plCol}18;color:${plCol};border:1px solid ${plCol}44;font-size:10px">${plLabel}</span></div><div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px">ID: ${a.account_id||a.id||'—'}</div><div style="font-family:var(--mono);font-size:10px;color:var(--saffron);margin-top:8px">Click to analyze →</div></div>`}).join('');
+if(S.shopAccs.length){sn.classList.remove('hidden');sn.textContent='Shopify: '+S.shopAccs.map(s=>s.name||s.account_id||s.id).join(', ')+' (auto-matched)'}}
+else{ld.innerHTML='<div style="color:var(--saffron2);font-family:var(--mono)">No ad accounts found</div><div style="color:var(--dim);font-size:12px;margin-top:6px">Check Windsor.ai connection</div>';rb.classList.remove('hidden')}}
 
 function rTabs(){$('tabBar').innerHTML=`<button class="tab-back" onclick="goBack()">← Brands</button>`+TABS.map(t=>`<button class="tab ${S.tab===t.id?'active':''}" onclick="swTab('${t.id}')">${t.l}</button>`).join('')}
-function rMeta(){$('metaRow').innerHTML=`<span><b>Account</b> ${S.sel?.account_id||S.sel?.id||'—'}</span><span><b>Brand</b> ${S.brand}</span><span><b>Source</b> Windsor.ai · live</span><span><b>Attribution</b> 7d-click / 1d-view</span>`}
+function rMeta(){const platLabels={facebook:'Meta Ads',google_ads:'Google Ads',amazon_sp:'Amazon SP'};$('metaRow').innerHTML=`<span><b>Account</b> ${S.sel?.account_id||S.sel?.id||'—'}</span><span><b>Brand</b> ${S.brand}</span><span><b>Platform</b> ${platLabels[S.connType]||S.connType||'—'}</span><span><b>Source</b> Windsor.ai · live</span>`}
 function rLoad(){$('loadStrip').innerHTML=Object.entries(S.loading).filter(([,v])=>v).map(([k])=>`<span class="loading-pill">● ${k}...</span>`).join('')}
 function rContent(){const el=$('content');switch(S.tab){case'scorecard':el.innerHTML=rScore();break;case'rolling':el.innerHTML=rRoll();break;case'weekly':el.innerHTML=rWeek();break;case'fatigue':el.innerHTML=rFat();break;case'collections':el.innerHTML=rColl();break;case'states':el.innerHTML=rState();break;case'creatives':el.innerHTML=rCreat();break}}
 function $(id){return document.getElementById(id)}
@@ -249,23 +253,24 @@ ${SC.sort((a,b)=>b.score-a.score).slice(0,30).map((a,i)=>`<tr${i%2===0?' style="
 // ═══ ACTIONS ═══
 function swTab(id){S.tab=id;rTabs();rContent()}
 function goBack(){S.sel=null;S.brand='';$('dash').classList.add('hidden');$('selView').classList.remove('hidden');$('hTitle').innerHTML='Select a brand<br><em>to begin analysis</em>';$('hSub').textContent='Live Windsor.ai data across Meta Ads & Shopify.'}
-function pickAcc(idx){const a=S.metaAccs[idx],id=a.account_id||a.id;const sh=S.shopAccs.find(s=>(s.name||'').toLowerCase().includes((a.name||'').toLowerCase().split(' ')[0]))||S.shopAccs[0]||null;
-S.sel=a;S.shop=sh;S.brand=a.name||a.account_name||'Account '+id;S.tab='scorecard';S.data={meta90d:null,meta28d:null,meta7d:null,shop90d:null,periods:null,weekly:null,fatigue:null,scored:null};
-$('selView').classList.add('hidden');$('dash').classList.remove('hidden');$('hTitle').innerHTML=S.brand+'<br><em>Performance Command Center</em>';$('hSub').textContent='';rTabs();rMeta();rContent();loadData(id)}
+function pickAcc(idx){const a=S.adAccs[idx],id=a.account_id||a.id;const connType=a.connector||'facebook';const sh=S.shopAccs.find(s=>(s.name||s.account_id||'').toLowerCase().includes((a.name||'').toLowerCase().split(' ')[0]))||S.shopAccs[0]||null;
+S.sel=a;S.shop=sh;S.brand=a.name||a.account_name||'Account '+id;S.connType=connType;S.tab='scorecard';S.data={meta90d:null,meta28d:null,meta7d:null,shop90d:null,periods:null,weekly:null,fatigue:null,scored:null};
+$('selView').classList.add('hidden');$('dash').classList.remove('hidden');$('hTitle').innerHTML=S.brand+'<br><em>Performance Command Center</em>';$('hSub').textContent='';rTabs();rMeta();rContent();loadData(id,connType)}
 
-async function loadData(accId){
-  S.loading={meta90d:true,meta28d:true,meta7d:true,shopify:!!S.shop};rLoad();
-  // Meta 90d daily
-  wdData('facebook',['date','spend','impressions','clicks','ctr','cpm','actions_purchase','action_values_purchase','actions_add_to_cart','actions_initiate_checkout','frequency','reach'],{date_preset:'last_90d',accounts:accId}).then(res=>{
-    const arr=res?.data||res||[];S.data.meta90d=Array.isArray(arr)?arr:[];S.data.periods=proc3P(S.data.meta90d);S.data.weekly=procWeekly(S.data.meta90d);S.loading.meta90d=false;rLoad();rContent()});
-  // Meta 28d ad-level
-  wdData('facebook',['ad_name','ad_id','campaign','adset_name','effective_status','spend','impressions','clicks','ctr','cpm','cpc','frequency','reach','actions_add_to_cart','actions_initiate_checkout','actions_purchase','action_values_purchase','cost_per_action_type_purchase','website_purchase_roas_offsite_conversion_fb_pixel_purchase','video_play_actions_video_view','video_p25_watched_actions_video_view','video_p50_watched_actions_video_view','video_p75_watched_actions_video_view','video_p100_watched_actions_video_view','website_destination_url'],{date_preset:'last_28d',accounts:accId}).then(res=>{
+async function loadData(accId,connType){
+  const conn=connType||'facebook';
+  S.loading={ads90d:true,ads28d:true,ads7d:true,shopify:!!S.shop};rLoad();
+  // Ad platform 90d daily
+  wdData(conn,['date','spend','impressions','clicks','ctr','cpm','actions_purchase','action_values_purchase','actions_add_to_cart','actions_initiate_checkout','frequency','reach'],{date_preset:'last_90d',accounts:accId}).then(res=>{
+    const arr=res?.data||res||[];S.data.meta90d=Array.isArray(arr)?arr:[];S.data.periods=proc3P(S.data.meta90d);S.data.weekly=procWeekly(S.data.meta90d);S.loading.ads90d=false;rLoad();rContent()});
+  // Ad platform 28d ad-level
+  wdData(conn,['ad_name','ad_id','campaign','adset_name','effective_status','spend','impressions','clicks','ctr','cpm','cpc','frequency','reach','actions_add_to_cart','actions_initiate_checkout','actions_purchase','action_values_purchase','cost_per_action_type_purchase','website_purchase_roas_offsite_conversion_fb_pixel_purchase','video_play_actions_video_view','video_p25_watched_actions_video_view','video_p50_watched_actions_video_view','video_p75_watched_actions_video_view','video_p100_watched_actions_video_view','website_destination_url'],{date_preset:'last_28d',accounts:accId}).then(res=>{
     const arr=Array.isArray(res?.data||res)?res?.data||res:[];S.data.meta28d=arr;
     const tS=arr.reduce((s,a)=>s+sf(a.spend),0),tI=arr.reduce((s,a)=>s+sf(a.impressions),0),tC=arr.reduce((s,a)=>s+sf(a.clicks),0);
-    S.data.scored=arr.filter(a=>sf(a.impressions)>=100).map(a=>scoreAd(a,tI>0?tS/tI*1000:300,tI>0?tC/tI:.03));S.loading.meta28d=false;rLoad();rContent()});
-  // Meta 7d daily ad-level
-  wdData('facebook',['date','ad_id','ad_name','spend','impressions','clicks','ctr','cpm','frequency','reach','actions_purchase','action_values_purchase','effective_status'],{date_preset:'last_7d',accounts:accId}).then(res=>{
-    const arr=Array.isArray(res?.data||res)?res?.data||res:[];S.data.meta7d=arr;S.data.fatigue=procFatigue(arr);S.loading.meta7d=false;rLoad();rContent()});
+    S.data.scored=arr.filter(a=>sf(a.impressions)>=100).map(a=>scoreAd(a,tI>0?tS/tI*1000:300,tI>0?tC/tI:.03));S.loading.ads28d=false;rLoad();rContent()});
+  // Ad platform 7d daily ad-level
+  wdData(conn,['date','ad_id','ad_name','spend','impressions','clicks','ctr','cpm','frequency','reach','actions_purchase','action_values_purchase','effective_status'],{date_preset:'last_7d',accounts:accId}).then(res=>{
+    const arr=Array.isArray(res?.data||res)?res?.data||res:[];S.data.meta7d=arr;S.data.fatigue=procFatigue(arr);S.loading.ads7d=false;rLoad();rContent()});
   // Shopify
   if(S.shop){wdData('shopify',['date','order_count','order_total_price','order_gross_sales','order_net_sales','order_financial_status','order_cancel_reason','order_return_status','order_sales_channel','order_quantity','order_shipping_province','order_billing_province'],{date_preset:'last_90d',date_filters:JSON.stringify({orders:'createdAt'})}).then(res=>{
     S.data.shop90d=Array.isArray(res?.data||res)?res?.data||res:[];S.loading.shopify=false;rLoad();rContent()})}
@@ -274,8 +279,8 @@ async function loadData(accId){
 async function loadAccounts(){
   $('loader').classList.remove('hidden');$('loader').innerHTML='<div style="color:var(--saffron);font-family:var(--mono)">Connecting to Windsor.ai...</div>';$('accGrid').classList.add('hidden');$('retryBtn').classList.add('hidden');
   const res=await wdConnectors();let conns=Array.isArray(res)?res:res?.data||res?.connectors||[];
-  let all=[];conns.forEach(c=>{if(c.accounts&&Array.isArray(c.accounts))c.accounts.forEach(a=>all.push({...a,connector:c.connector||c.name}));else all.push(c)});
-  S.metaAccs=all.filter(a=>{const cn=(a.connector||a.type||a.source||'').toLowerCase();return cn.includes('facebook')||cn.includes('meta')});
+  let all=[];conns.forEach(c=>{if(c.accounts&&Array.isArray(c.accounts))c.accounts.forEach(a=>all.push({...a,connector:c.connector||c.name||c.id}));else all.push(c)});
+  S.adAccs=all.filter(a=>{const cn=(a.connector||a.type||a.source||'').toLowerCase();return cn.includes('facebook')||cn.includes('meta')||cn.includes('google_ads')||cn.includes('amazon')});
   S.shopAccs=all.filter(a=>(a.connector||a.type||a.source||'').toLowerCase().includes('shopify'));
   rAccs();
 }
