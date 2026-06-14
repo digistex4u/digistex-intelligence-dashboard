@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     // Discover accounts by pulling minimal data from each connector
     if (endpoint === 'connectors') {
       const results = [];
-      for (const conn of ['facebook', 'shopify']) {
+      for (const conn of ['facebook', 'shopify', 'amazon_sp', 'google_ads']) {
         try {
           const qs = new URLSearchParams({
             api_key: API_KEY,
