@@ -1,0 +1,8 @@
+-e node_modules
+.npm-global
+.cache
+.config
+.local
+.npm
+.npmrc
+.wget-hsts
