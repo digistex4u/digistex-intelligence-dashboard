@@ -1,7 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "",
-  "outputDirectory": "public",
   "functions": {
     "api/windsor.js": {
       "memory": 1024,
