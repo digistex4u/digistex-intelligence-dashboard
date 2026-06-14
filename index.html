@@ -836,26 +836,55 @@ async function liveRefresh(){
       byproduct:{},bycollection:{},nourl:[],gprod:[],weeklyFatigue:null,weeklyStarved:null,
       accounts:{meta:acMeta,google:acG,shopify:acS},brandName,plan:null};
 
-    // ---- META ad-level per window ----
-    step.textContent='Pulling Meta Ads data…';
-    const allRows=[];
+    /* ═══════════════════════════════════════
+       PHASE 1: Meta DAILY aggregates (LIGHT — no ad_name)
+       ~30 rows/month/account, filters client-side
+       ═══════════════════════════════════════ */
+    step.textContent='Phase 1/5 · Meta monthly aggregates…';
+    const mm={};d.labels.forEach(l=>mm[l]={sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,ads:0});
     for(const w of WINDOWS){
       try{
-      const rows=await wfetch('facebook',{date_from:w.from,date_to:w.to,
-        fields:'account_id,ad_name,campaign,website_destination_url,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase'});
-      rows.filter(r=>String(r.account_id)===String(acMeta)).forEach(r=>allRows.push({label:w.label,ad:r.ad_name,camp:r.campaign,link:r.website_destination_url,
-        sp:+r.spend||0,im:+r.impressions||0,cl:+r.clicks||0,atc:+r.actions_add_to_cart||0,
-        ic:+r.actions_initiate_checkout||0,pu:+r.actions_purchase||0,rev:+r.action_values_purchase||0}));
-      step.textContent='Meta '+w.label+' ✓ ('+allRows.length+' ads)';
-      }catch(e){step.textContent='Meta '+w.label+' ⚠ '+e.message; console.warn(e);}
+        const rows=await wfetch('facebook',{date_from:w.from,date_to:w.to,
+          fields:'account_id,date,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase'});
+        const filtered=rows.filter(r=>String(r.account_id)===String(acMeta));
+        const o=mm[w.label];
+        filtered.forEach(r=>{o.sp+=+r.spend||0;o.im+=+r.impressions||0;o.cl+=+r.clicks||0;
+          o.atc+=+r.actions_add_to_cart||0;o.ic+=+r.actions_initiate_checkout||0;
+          o.pu+=+r.actions_purchase||0;o.rev+=+r.action_values_purchase||0;o.ads++;});
+        step.textContent='Phase 1/5 · Meta '+w.label+' ✓';
+      }catch(e){step.textContent='Phase 1 · '+w.label+' ⚠ timeout, skipping';console.warn(e);}
     }
-    // aggregate monthly Meta
-    const mm={};d.labels.forEach(l=>mm[l]={sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,ads:0});
+    d.meta=mm;
+
+    /* ═══════════════════════════════════════
+       PHASE 2: Meta AD-LEVEL for last 2 months only (for collections, products, no-URL)
+       Pulled in 2-week buckets to avoid timeout
+       ═══════════════════════════════════════ */
+    step.textContent='Phase 2/5 · Meta ad-level detail…';
+    const allRows=[];
+    const last2=WINDOWS.slice(-2); // only last 2 months
+    for(const w of last2){
+      // Split each month into 2 halves
+      const mid=new Date(w.from);mid.setDate(mid.getDate()+14);
+      const midStr=mid.toISOString().slice(0,10);
+      const halves=[{from:w.from,to:midStr},{from:midStr,to:w.to}];
+      for(const h of halves){
+        try{
+          const rows=await wfetch('facebook',{date_from:h.from,date_to:h.to,
+            fields:'account_id,ad_name,campaign,website_destination_url,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase'});
+          rows.filter(r=>String(r.account_id)===String(acMeta)).forEach(r=>allRows.push({
+            label:w.label,ad:r.ad_name,camp:r.campaign,link:r.website_destination_url,
+            sp:+r.spend||0,im:+r.impressions||0,cl:+r.clicks||0,atc:+r.actions_add_to_cart||0,
+            ic:+r.actions_initiate_checkout||0,pu:+r.actions_purchase||0,rev:+r.action_values_purchase||0}));
+          step.textContent='Phase 2/5 · '+w.label+' ('+allRows.length+' ads)';
+        }catch(e){step.textContent='Phase 2 · chunk ⚠ skipping';console.warn(e);}
+      }
+    }
+    // build product / collection / no-url from ad-level data
     const prod={},coll={},nour={};
     allRows.forEach(r=>{
-      const o=mm[r.label];o.sp+=r.sp;o.im+=r.im;o.cl+=r.cl;o.atc+=r.atc;o.ic+=r.ic;o.pu+=r.pu;o.rev+=r.rev;o.ads++;
       const p=classifyProduct(r.ad);(prod[p]=prod[p]||{})[r.label]=(prod[p][r.label]||0)+r.rev;
-      const c=collectionOf(r.website_destination_url);(coll[c]=coll[c]||{})[r.label]=(coll[c][r.label]||0)+r.rev;
+      const c=collectionOf(r.link);(coll[c]=coll[c]||{})[r.label]=(coll[c][r.label]||0)+r.rev;
       if(c==='no-url (catalogue/boost)'){
         const kk=r.ad+'||'+r.camp;
         const a=nour[kk]=nour[kk]||{ad:r.ad,camp:r.camp,tot:{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0},months:{}};
@@ -863,29 +892,33 @@ async function liveRefresh(){
         ['sp','im','cl','atc','ic','pu','rev'].forEach(k=>{a.tot[k]+=r[k];mo[k]+=r[k];});
       }
     });
-    d.meta=mm;d.byproduct=prod;d.bycollection=coll;
+    d.byproduct=prod;d.bycollection=coll;
     d.nourl=Object.values(nour).sort((a,b)=>b.tot.sp-a.tot.sp);
 
-    // ---- GOOGLE monthly ----
+    /* ═══════════════════════════════════════
+       PHASE 3: Google + Shopify (usually lighter)
+       ═══════════════════════════════════════ */
     if(acG){
-      step.textContent='Pulling Google Ads data…';
+      step.textContent='Phase 3/5 · Google Ads…';
       for(const w of WINDOWS){
         try{
-          const sp=await wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'cost,clicks,impressions',accounts:'["'+acG+'"]'});
-          const rv=await wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'conversion_action_name,all_conversions_value,conversions',accounts:'["'+acG+'"]'});
-          const s=sp.reduce((a,x)=>({cost:a.cost+(+x.cost||0),clicks:a.clicks+(+x.clicks||0),impr:a.impr+(+x.impressions||0)}),{cost:0,clicks:0,impr:0});
-          let rev=0,conv=0;rv.forEach(x=>{if((x.conversion_action_name||'').toLowerCase().includes('purchase')){rev+=+x.all_conversions_value||0;conv+=+x.conversions||0;}});
+          const sp=await wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'customer_id,cost,clicks,impressions'});
+          const rv=await wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'customer_id,conversion_action_name,all_conversions_value,conversions'});
+          const fsp=sp.filter(x=>String(x.customer_id||'').replace(/-/g,'')===acG.replace(/-/g,''));
+          const frv=rv.filter(x=>String(x.customer_id||'').replace(/-/g,'')===acG.replace(/-/g,''));
+          const s=fsp.reduce((a,x)=>({cost:a.cost+(+x.cost||0),clicks:a.clicks+(+x.clicks||0),impr:a.impr+(+x.impressions||0)}),{cost:0,clicks:0,impr:0});
+          let rev=0,conv=0;frv.forEach(x=>{if((x.conversion_action_name||'').toLowerCase().includes('purchase')){rev+=+x.all_conversions_value||0;conv+=+x.conversions||0;}});
           d.google[w.label]={cost:s.cost,clicks:s.clicks,impr:s.impr,rev,conv};
+          step.textContent='Phase 3/5 · Google '+w.label+' ✓';
         }catch(e){d.google[w.label]={cost:0,clicks:0,impr:0,rev:0,conv:0};}
       }
-      // Google product revenue
-      step.textContent='Pulling Google product data…';
+      // Google product revenue (last 2 months only)
       try{
         const gpRows=[];
-        for(const w of WINDOWS){
-          const prd=await wfetch('google_ads',{date_from:w.from,date_to:w.to,
-            fields:'product_title,all_conversions_value',accounts:'["'+acG+'"]'});
-          prd.forEach(r=>{if(+r.all_conversions_value>0)gpRows.push({name:r.product_title||'(unknown)',label:w.label,rev:+r.all_conversions_value});});
+        for(const w of last2){
+          const prd=await wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'customer_id,product_title,all_conversions_value'});
+          prd.filter(x=>String(x.customer_id||'').replace(/-/g,'')===acG.replace(/-/g,'')).forEach(r=>{
+            if(+r.all_conversions_value>0)gpRows.push({name:r.product_title||'(unknown)',label:w.label,rev:+r.all_conversions_value});});
         }
         const gpMap={};
         gpRows.forEach(r=>{gpMap[r.name]=gpMap[r.name]||{name:r.name,months:{},tot:0};gpMap[r.name].months[r.label]=(gpMap[r.name].months[r.label]||0)+r.rev;gpMap[r.name].tot+=r.rev;});
@@ -895,48 +928,52 @@ async function liveRefresh(){
       d.labels.forEach(l=>d.google[l]={cost:0,clicks:0,impr:0,rev:0,conv:0});
     }
 
-    // ---- SHOPIFY monthly ----
     if(acS){
-      step.textContent='Pulling Shopify data…';
+      step.textContent='Phase 3/5 · Shopify…';
       for(const w of WINDOWS){
         try{
-          const sh=await wfetch('shopify',{date_from:w.from,date_to:w.to,fields:'order_total_price,order_total_count',account_id:acS});
+          const sh=await wfetch('shopify',{date_from:w.from,date_to:w.to,fields:'order_total_price,order_total_count'});
           const tot=sh.reduce((a,x)=>({total:a.total+(+x.order_total_price||0),orders:a.orders+(+x.order_total_count||0)}),{total:0,orders:0});
           d.shopify[w.label]=tot.total>0?{total:tot.total,orders:tot.orders}:null;
         }catch(e){d.shopify[w.label]=null;}
       }
     }else{d.labels.forEach(l=>d.shopify[l]=null);}
 
-    // ---- WEEKLY FATIGUE (last 4 ISO weeks of Meta data) ----
-    step.textContent='Building creative fatigue analysis…';
+    /* ═══════════════════════════════════════
+       PHASE 4: Creative fatigue — 4 weekly buckets (7 days each)
+       ═══════════════════════════════════════ */
+    step.textContent='Phase 4/5 · Creative fatigue (weekly buckets)…';
     try{
-      const now=new Date(),fourWeeksAgo=new Date(now.getTime()-28*86400000);
-      const wFrom=fourWeeksAgo.toISOString().slice(0,10),wTo=now.toISOString().slice(0,10);
-      const wrows_raw=await wfetch('facebook',{date_from:wFrom,date_to:wTo,
-        fields:'account_id,ad_name,date,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase,video_play_actions_video_view'});
-      const wrows=wrows_raw.filter(r=>String(r.account_id)===String(acMeta));
-      // group by ad × ISO week
+      const now=new Date();
       const adWeeks={};
-      wrows.forEach(r=>{
-        const dt=new Date(r.date),wk=getISOWeek(dt);
-        const key=r.ad_name;
-        adWeeks[key]=adWeeks[key]||{ad:r.ad_name,weeks:{},tot:{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,vv:0}};
-        const w=adWeeks[key].weeks[wk]=adWeeks[key].weeks[wk]||{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,vv:0};
-        w.sp+=+r.spend||0;w.im+=+r.impressions||0;w.cl+=+r.clicks||0;
-        w.atc+=+r.actions_add_to_cart||0;w.ic+=+r.actions_initiate_checkout||0;
-        w.pu+=+r.actions_purchase||0;w.rev+=+r.action_values_purchase||0;w.vv+=+r.video_play_actions_video_view||0;
-        const t=adWeeks[key].tot;t.sp+=+r.spend||0;t.im+=+r.impressions||0;t.cl+=+r.clicks||0;
-        t.atc+=+r.actions_add_to_cart||0;t.pu+=+r.actions_purchase||0;t.rev+=+r.action_values_purchase||0;t.vv+=+r.video_play_actions_video_view||0;
-      });
-      // determine 4 weeks
-      const allWeeks=[...new Set(wrows.map(r=>getISOWeek(new Date(r.date))))].sort((a,b)=>a-b);
-      const weeks=allWeeks.slice(-4);
-      // build fatigue ads (only those with spend in ≥3 of 4 weeks, >₹2000 total)
+      const weekNums=[];
+      for(let wi=3;wi>=0;wi--){
+        const wEnd=new Date(now.getTime()-(wi*7)*86400000);
+        const wStart=new Date(wEnd.getTime()-7*86400000);
+        const wFrom=wStart.toISOString().slice(0,10),wTo=wEnd.toISOString().slice(0,10);
+        const wk=getISOWeek(wStart);
+        if(!weekNums.includes(wk))weekNums.push(wk);
+        try{
+          step.textContent='Phase 4/5 · Fatigue week '+(4-wi)+'/4…';
+          const wrows_raw=await wfetch('facebook',{date_from:wFrom,date_to:wTo,
+            fields:'account_id,ad_name,date,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase,video_play_actions_video_view'});
+          wrows_raw.filter(r=>String(r.account_id)===String(acMeta)).forEach(r=>{
+            const key=r.ad_name;
+            adWeeks[key]=adWeeks[key]||{ad:r.ad_name,weeks:{},tot:{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,vv:0}};
+            const w=adWeeks[key].weeks[wk]=adWeeks[key].weeks[wk]||{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,vv:0};
+            w.sp+=+r.spend||0;w.im+=+r.impressions||0;w.cl+=+r.clicks||0;
+            w.atc+=+r.actions_add_to_cart||0;w.ic+=+r.actions_initiate_checkout||0;
+            w.pu+=+r.actions_purchase||0;w.rev+=+r.action_values_purchase||0;w.vv+=+r.video_play_actions_video_view||0;
+            const t=adWeeks[key].tot;t.sp+=+r.spend||0;t.im+=+r.impressions||0;t.cl+=+r.clicks||0;
+            t.atc+=+r.actions_add_to_cart||0;t.pu+=+r.actions_purchase||0;t.rev+=+r.action_values_purchase||0;t.vv+=+r.video_play_actions_video_view||0;
+          });
+        }catch(e){console.warn('Fatigue week '+(4-wi)+' skipped:',e);}
+      }
+      const weeks=weekNums;
       const fatAds=Object.values(adWeeks).filter(a=>{
         const active=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;
         return active>=3 && a.tot.sp>2000;
       }).sort((a,b)=>b.tot.sp-a.tot.sp).slice(0,20);
-      // classify signal
       fatAds.forEach(a=>{
         weeks.forEach(w=>{a.weeks[w]=a.weeks[w]||{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,vv:0};});
         const wd=weeks.map(w=>fatDerive(a.weeks[w]));
@@ -944,15 +981,15 @@ async function liveRefresh(){
         const firstPu=(wd[0].pu+wd[1].pu)/2,lastPu=(wd[2].pu+wd[3].pu)/2;
         const firstCpm=(wd[0].cpm+wd[1].cpm)/2,lastCpm=(wd[2].cpm+wd[3].cpm)/2;
         if(last<first*0.4){a.signal='Throttled ↓';a.reason='Spend cut sharply';}
-        else if(lastPu>=firstPu*1.03&&last>=first*0.8){a.signal='Scaling ✅';a.reason='Spend & purchases both rising';}
+        else if(lastPu>=firstPu*1.03&&last>=first*0.8){a.signal='Scaling ✅';a.reason='Spend & purchases rising';}
         else if(a.tot.sp>5000&&a.tot.pu<2){a.signal='Weak 🔴';a.reason='High spend, low purchases';}
-        else if(lastPu<firstPu*0.7||lastCpm>firstCpm*1.15){a.signal='Fatigue ⚠️';a.reason='Purchases down + CPM up / CTR down';}
+        else if(lastPu<firstPu*0.7||lastCpm>firstCpm*1.15){a.signal='Fatigue ⚠️';a.reason='Purchases down or CPM up';}
         else{a.signal='Steady •';a.reason='No strong signal';}
         a.prod=classifyProduct(a.ad);
       });
       d.weeklyFatigue={weeks,ads:fatAds};
 
-      // ---- STARVED / UNDER-FUNDED ----
+      // Starved/under-funded
       const starved=Object.values(adWeeks).filter(a=>{
         const active=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;
         return active>=1 && a.tot.sp<2500 && a.tot.sp>20;
@@ -971,8 +1008,10 @@ async function liveRefresh(){
       d.weeklyStarved={ads:starved};
     }catch(e){console.warn('Fatigue analysis skipped:',e);}
 
-    // ---- PLANNER DATA (2-month average from last 2 months) ----
-    step.textContent='Computing planner baselines…';
+    /* ═══════════════════════════════════════
+       PHASE 5: Planner baselines
+       ═══════════════════════════════════════ */
+    step.textContent='Phase 5/5 · Computing planner…';
     const last2=WINDOWS.slice(-2);
     const mTot={rev:0,spend:0,pu:0,clicks:0,impr:0};
     last2.forEach(w=>{const m=d.meta[w.label];mTot.rev+=m.rev;mTot.spend+=m.sp;mTot.pu+=m.pu;mTot.clicks+=m.cl;mTot.impr+=m.im;});
