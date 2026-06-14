@@ -840,12 +840,14 @@ async function liveRefresh(){
     step.textContent='Pulling Meta Ads data…';
     const allRows=[];
     for(const w of WINDOWS){
+      try{
       const rows=await wfetch('facebook',{date_from:w.from,date_to:w.to,
-        fields:'ad_name,campaign,website_destination_url,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase',
-        accounts:'['+acMeta+']'});
-      rows.forEach(r=>allRows.push({label:w.label,ad:r.ad_name,camp:r.campaign,link:r.website_destination_url,
+        fields:'account_id,ad_name,campaign,website_destination_url,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase'});
+      rows.filter(r=>String(r.account_id)===String(acMeta)).forEach(r=>allRows.push({label:w.label,ad:r.ad_name,camp:r.campaign,link:r.website_destination_url,
         sp:+r.spend||0,im:+r.impressions||0,cl:+r.clicks||0,atc:+r.actions_add_to_cart||0,
         ic:+r.actions_initiate_checkout||0,pu:+r.actions_purchase||0,rev:+r.action_values_purchase||0}));
+      step.textContent='Meta '+w.label+' ✓ ('+allRows.length+' ads)';
+      }catch(e){step.textContent='Meta '+w.label+' ⚠ '+e.message; console.warn(e);}
     }
     // aggregate monthly Meta
     const mm={};d.labels.forEach(l=>mm[l]={sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,ads:0});
@@ -910,9 +912,9 @@ async function liveRefresh(){
     try{
       const now=new Date(),fourWeeksAgo=new Date(now.getTime()-28*86400000);
       const wFrom=fourWeeksAgo.toISOString().slice(0,10),wTo=now.toISOString().slice(0,10);
-      const wrows=await wfetch('facebook',{date_from:wFrom,date_to:wTo,
-        fields:'ad_name,date,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase,video_play_actions_video_view',
-        accounts:'['+acMeta+']'});
+      const wrows_raw=await wfetch('facebook',{date_from:wFrom,date_to:wTo,
+        fields:'account_id,ad_name,date,spend,impressions,clicks,actions_add_to_cart,actions_initiate_checkout,actions_purchase,action_values_purchase,video_play_actions_video_view'});
+      const wrows=wrows_raw.filter(r=>String(r.account_id)===String(acMeta));
       // group by ad × ISO week
       const adWeeks={};
       wrows.forEach(r=>{
