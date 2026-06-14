@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digistex · Multi-Brand Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0c0a09;--ink2:#1c1917;--card:#1c1917;--card2:#292524;--line:#44403c;--paper:#fafaf9;--muted:#a8a29e;--dim:#78716c;--saffron:#f59e0b;--saffron2:#fbbf24;--indigo:#818cf8;--teal:#14b8a6;--red:#ef4444;--green:#22c55e;--blue:#3b82f6;--purple:#a78bfa;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--disp:'Fraunces',serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(900px 500px at 85% -5%,rgba(245,158,11,.08),transparent 60%),radial-gradient(700px 500px at 5% 100%,rgba(129,140,248,.06),transparent 55%),var(--ink);color:var(--paper);font-family:var(--sans);line-height:1.55;padding:28px 20px 80px}
+.wrap{max-width:1120px;margin:0 auto}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--saffron);margin-bottom:8px}
+h1{font-family:var(--disp);font-weight:900;font-size:clamp(26px,4.5vw,44px);line-height:1.05;letter-spacing:-.01em}
+h1 em{font-style:italic;color:var(--saffron2)}
+h2{font-family:var(--disp);font-weight:600;font-size:22px;margin:0 0 4px}
+h2 .n{font-family:var(--mono);font-size:13px;color:var(--saffron);vertical-align:super;margin-right:8px}
+.lead{color:var(--muted);font-size:13px;max-width:760px;margin-bottom:18px;line-height:1.5}
+.meta-row{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+.meta-row b{color:var(--muted);font-weight:500}
+.tabs{display:flex;gap:4px;margin-top:18px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:2px}
+.tab{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:11px;padding:8px 14px;border-radius:8px 8px 0 0;transition:all .15s}
+.tab:hover{color:var(--saffron2)}.tab.active{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--saffron)}
+.tab-back{background:none;border:none;color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:11px;padding:8px 12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .l{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.kpi .v{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:6px}
+.kpi .d{font-family:var(--mono);font-size:11.5px;margin-top:4px}
+.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--muted)}
+.kpi .was{color:var(--dim);font-size:10px;font-family:var(--mono);margin-top:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-top:14px}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
+.card-head .nm{font-family:var(--disp);font-size:18px;font-weight:600}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em}
+.badge-green{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.3)}
+.badge-red{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.badge-amber{background:rgba(251,191,36,.12);color:var(--saffron2);border:1px solid rgba(251,191,36,.3)}
+.badge-blue{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.badge-muted{background:rgba(168,162,158,.1);color:var(--muted);border:1px solid rgba(168,162,158,.25)}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+th,td{text-align:right;padding:8px 6px;border-bottom:1px solid rgba(68,64,60,.25)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+td.nm{font-family:var(--sans);color:var(--paper)}
+tr:hover td{background:rgba(255,255,255,.015)}
+.step{position:relative;height:28px;border-radius:5px;display:flex;align-items:center;padding:0 8px;overflow:hidden;margin-bottom:2px}
+.step .fill{position:absolute;inset:0;border-radius:5px;opacity:.18}
+.step .sl{font-family:var(--mono);font-size:10px;color:var(--paper);z-index:1}
+.step .sv{font-family:var(--mono);font-size:11px;font-weight:600;margin-left:auto;z-index:1}
+.rate{font-family:var(--mono);font-size:9px;color:var(--dim);text-align:right;padding:1px 8px;height:14px}
+.rate b{color:var(--saffron2)}
+.alert-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:8px}
+.alert-card.critical{border-left:3px solid var(--red)}.alert-card.danger{border-left:3px solid #f97316}.alert-card.warning{border-left:3px solid var(--saffron2)}
+.note{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--ink2);border:1px dashed var(--line);border-radius:10px;padding:12px 14px;margin-top:14px;line-height:1.7}
+.note b{color:var(--muted)}.verdict{background:linear-gradient(180deg,var(--ink2),var(--card));border:1px solid var(--line);border-left:3px solid var(--saffron);border-radius:14px;padding:18px 20px;margin-top:18px}
+.week-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.week-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative}
+.week-card.best{border-color:rgba(34,197,94,.4)}.week-card.worst{border-color:rgba(239,68,68,.4)}
+.bucket-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.bucket-card{background:var(--card);border-radius:12px;padding:14px;text-align:center}
+.acc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:12px}
+.acc-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;cursor:pointer;transition:border-color .15s}
+.acc-card:hover{border-color:var(--saffron)}
+.foot{margin-top:50px;border-top:1px solid var(--line);padding-top:14px;font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.hidden{display:none}
+.loading-pill{font-family:var(--mono);font-size:10px;color:var(--saffron);background:rgba(245,158,11,.08);padding:3px 10px;border-radius:20px;display:inline-block;margin:2px 4px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@media(max-width:780px){.kpis,.week-grid,.bucket-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">Digistex · Multi-Brand Intelligence Dashboard</div>
+  <h1 id="hTitle">Select a brand<br><em>to begin analysis</em></h1>
+  <p id="hSub" style="color:var(--muted);max-width:680px;margin-top:10px;font-size:14px">Live Windsor.ai data across Meta Ads &amp; Shopify. 90-day rolling, weekly cyclicality, ad fatigue, collection mapping, state-level revenue, creative scoring.</p>
+  <div id="selView">
+    <p style="color:var(--muted);font-size:14px;margin:16px 0 8px">Connected accounts:</p>
+    <div id="loader" style="background:var(--card);border-radius:12px;padding:24px;text-align:center"><div style="color:var(--saffron);font-family:var(--mono)">Connecting to Windsor.ai...</div></div>
+    <div id="accGrid" class="acc-grid hidden"></div>
+    <div id="shopNote" class="hidden" style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--dim)"></div>
+    <button id="retryBtn" class="hidden" onclick="loadAccounts()" style="margin-top:12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:var(--saffron);border-radius:8px;padding:8px 16px;cursor:pointer;font-family:var(--mono);font-size:12px">Retry</button>
+  </div>
+  <div id="dash" class="hidden">
+    <div class="tabs" id="tabBar"></div>
+    <div id="loadStrip" style="margin-top:10px"></div>
+    <div class="meta-row" id="metaRow"></div>
+    <div id="content" style="margin-top:24px"></div>
+  </div>
+  <div class="foot"><span>Digistex Intelligence · Windsor.ai</span><span>₹ INR · 7d-click / 1d-view</span></div>
+</div>
+<script>
+// ═══ WINDSOR API LAYER — dual mode: direct (encrypted key) or Vercel proxy ═══
+let WINDSOR_KEY = null;
+const STORAGE_KEY = 'digistex_wk';
+
+function showSetup(){$('selView').innerHTML=`<div class="card" style="max-width:520px;margin-top:20px">
+<h2 style="font-size:18px;margin-bottom:12px">Windsor.ai API Key</h2>
+<p style="color:var(--muted);font-size:13px;margin-bottom:16px">Enter your Windsor.ai API key. Encrypted with AES-256 and stored locally — never in source code.</p>
+<input id="keyIn" type="password" placeholder="Paste your Windsor.ai API key" style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--line);background:var(--ink2);color:var(--paper);font-family:var(--mono);font-size:13px;outline:none">
+<button onclick="saveKey()" style="width:100%;margin-top:10px;padding:10px;border-radius:8px;background:var(--saffron);color:var(--ink);border:none;cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:600">Connect & Start</button>
+<div style="margin-top:14px;font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.7"><b style="color:var(--muted)">Find key:</b> Windsor.ai → Settings → API<br><b style="color:var(--muted)">Security:</b> AES-256-GCM encrypted in browser localStorage<br><b style="color:var(--muted)">Vercel:</b> If deployed with WINDSOR_API_KEY env var, no key entry needed</div></div>`}
+
+async function saveKey(){const key=$('keyIn').value.trim();if(!key)return;
+const enc=new TextEncoder(),salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+const bk=await crypto.subtle.importKey('raw',enc.encode('digistex-dash-2026'),{name:'PBKDF2'},false,['deriveKey']);
+const ak=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},bk,{name:'AES-GCM',length:256},false,['encrypt']);
+const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},ak,enc.encode(key));
+localStorage.setItem(STORAGE_KEY,JSON.stringify({s:btoa(String.fromCharCode(...salt)),i:btoa(String.fromCharCode(...iv)),c:btoa(String.fromCharCode(...new Uint8Array(ct)))}));
+WINDSOR_KEY=key;initDash()}
+
+async function loadKey(){const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return false;try{
+const{s,i,c}=JSON.parse(raw);const salt=Uint8Array.from(atob(s),c=>c.charCodeAt(0)),iv=Uint8Array.from(atob(i),c=>c.charCodeAt(0)),ct=Uint8Array.from(atob(c),c=>c.charCodeAt(0));
+const bk=await crypto.subtle.importKey('raw',new TextEncoder().encode('digistex-dash-2026'),{name:'PBKDF2'},false,['deriveKey']);
+const ak=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},bk,{name:'AES-GCM',length:256},false,['decrypt']);
+WINDSOR_KEY=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv},ak,ct));return true}catch{localStorage.removeItem(STORAGE_KEY);return false}}
+
+async function wdGet(endpoint,params={}){
+  if(WINDSOR_KEY){try{const qs=new URLSearchParams({api_key:WINDSOR_KEY});
+    if(endpoint==='connectors'){return(await fetch('https://connectors.windsor.ai/connectors?'+qs)).json()}
+    if(endpoint==='data'){Object.entries(params).forEach(([k,v])=>{if(v)qs.set(k,v)});return(await fetch('https://connectors.windsor.ai/all?'+qs)).json()}
+  }catch(e){console.warn('Direct failed, trying proxy:',e)}}
+  try{const r=await fetch('/api/windsor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint,...params})});if(r.ok)return r.json()}catch{}
+  return{error:'Connection failed'}}
+async function wdConnectors(){return wdGet('connectors')}
+async function wdData(connector,fields,opts={}){return wdGet('data',{connector,fields:fields.join(','),...opts})}
+
+function initDash(){$('selView').innerHTML=`<p style="color:var(--muted);font-size:14px;margin:16px 0 8px">Connected accounts:</p>
+<div id="loader" style="background:var(--card);border-radius:12px;padding:24px;text-align:center"><div style="color:var(--saffron);font-family:var(--mono)">Connecting to Windsor.ai...</div></div>
+<div id="accGrid" class="acc-grid hidden"></div><div id="shopNote" class="hidden" style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--dim)"></div>
+<button id="retryBtn" class="hidden" onclick="loadAccounts()" style="margin-top:12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:var(--saffron);border-radius:8px;padding:8px 16px;cursor:pointer;font-family:var(--mono);font-size:12px">Retry</button>
+<button onclick="localStorage.removeItem('${STORAGE_KEY}');location.reload()" style="margin-top:8px;background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:var(--mono);font-size:11px">Change API Key</button>`;
+loadAccounts()}
+
+// ═══ HELPERS ═══
+const sf=v=>parseFloat(v)||0, pc=(a,b)=>b?((a-b)/b*100):0;
+const fmt=(n,d=0)=>Number(n).toLocaleString('en-IN',{maximumFractionDigits:d,minimumFractionDigits:d});
+const fI=n=>'₹'+fmt(Math.round(n));
+const sgn=v=>(v>0?'▲ ':(v<0?'▼ ':'• '))+fmt(Math.abs(v),1)+'%';
+const dcls=v=>Math.abs(v)<2?'flat':(v>0?'up':'down');
+function bg(t,ty){return`<span class="badge badge-${ty}">${t}</span>`}
+function dH(v,inv){const pos=inv?v<0:v>0;const c=Math.abs(v)<2?'flat':pos?'up':'down';return`<span class="${c}" style="font-family:var(--mono);font-size:11.5px">${sgn(v)}</span>`}
+function kH(l,v,d,s,inv){return`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div>${d!=null?`<div class="d">${dH(d,inv)}</div>`:''}<div class="was">${s||''}</div></div>`}
+function exColl(url){if(!url)return'Unknown';try{const p=new URL(url).pathname.toLowerCase();if(p.includes('/collections/')){const s=p.split('/collections/')[1]?.split(/[/?#]/)[0];return s?s.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()):'Unknown'}if(p.includes('/products/')){const s=p.split('/products/')[1]?.split(/[/?#]/)[0];return s?'Product: '+s.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()):'Unknown'}if(p.includes('search'))return'Search Page';if(p==='/'||p==='')return'Homepage';return p.split('/').filter(Boolean).pop()?.replace(/-/g,' ')?.replace(/\b\w/g,c=>c.toUpperCase())||'Other'}catch{return'Unknown'}}
+
+// ═══ DATA PROCESSING ═══
+function proc3P(daily){if(!daily?.length)return null;const sorted=[...daily].sort((a,b)=>new Date(a.date)-new Date(b.date));const t=sorted.length,th=Math.floor(t/3);const sl=[sorted.slice(0,th),sorted.slice(th,th*2),sorted.slice(th*2)];const lb=['Period 1 (Oldest)','Period 2 (Middle)','Period 3 (Recent)'];
+return sl.map((data,i)=>{const d=data.length||1;const sp=data.reduce((s,r)=>s+sf(r.spend),0),im=data.reduce((s,r)=>s+sf(r.impressions),0),cl=data.reduce((s,r)=>s+sf(r.clicks),0),pur=data.reduce((s,r)=>s+sf(r.actions_purchase),0),rev=data.reduce((s,r)=>s+sf(r.action_values_purchase),0),atc=data.reduce((s,r)=>s+sf(r.actions_add_to_cart),0),ic=data.reduce((s,r)=>s+sf(r.actions_initiate_checkout),0),fr=data.reduce((s,r)=>s+sf(r.frequency),0)/d;return{label:lb[i],days:d,spend:sp,impr:im,clicks:cl,purchases:pur,revenue:rev,atc,ic,freq:fr,roas:sp>0?rev/sp:0,cpm:im>0?sp/im*1000:0,ctr:im>0?cl/im*100:0,atcRate:cl>0?atc/cl*100:0,purchaseRate:atc>0?pur/atc*100:0,dateRange:data.length?data[0]?.date?.slice(5)+' → '+data[data.length-1]?.date?.slice(5):''}});}
+
+function procWeekly(daily){if(!daily?.length)return null;const w={'Week 1':[],'Week 2':[],'Week 3':[],'Week 4':[]};daily.forEach(d=>{const dy=new Date(d.date).getDate();if(dy<=7)w['Week 1'].push(d);else if(dy<=14)w['Week 2'].push(d);else if(dy<=21)w['Week 3'].push(d);else w['Week 4'].push(d)});
+return Object.entries(w).map(([l,data])=>{const d=data.length||1,sp=data.reduce((s,r)=>s+sf(r.spend),0),rev=data.reduce((s,r)=>s+sf(r.action_values_purchase),0),pur=data.reduce((s,r)=>s+sf(r.actions_purchase),0),cl=data.reduce((s,r)=>s+sf(r.clicks),0),im=data.reduce((s,r)=>s+sf(r.impressions),0);return{label:l,days:d,totalSpend:sp,totalRevenue:rev,totalPurchases:pur,avgSpend:sp/d,avgRevenue:rev/d,avgPurchases:pur/d,roas:sp>0?rev/sp:0,cpm:im>0?sp/im*1000:0,ctr:im>0?cl/im*100:0}});}
+
+function procFatigue(adDaily){if(!adDaily?.length)return[];const byAd={};adDaily.forEach(d=>{const id=d.ad_id||d.ad_name;if(!byAd[id])byAd[id]={name:d.ad_name,days:[]};byAd[id].days.push(d)});const alerts=[];
+Object.values(byAd).forEach(ad=>{const sorted=ad.days.sort((a,b)=>new Date(a.date)-new Date(b.date));if(sorted.length<3)return;const r3=sorted.slice(-3),ea=sorted.slice(0,-3);const rC=r3.reduce((s,d)=>s+sf(d.cpm),0)/r3.length,eC=ea.length?ea.reduce((s,d)=>s+sf(d.cpm),0)/ea.length:rC;const rF=r3.reduce((s,d)=>s+sf(d.frequency),0)/r3.length;const rR=r3.reduce((s,d)=>s+sf(d.ctr),0)/r3.length,eR=ea.length?ea.reduce((s,d)=>s+sf(d.ctr),0)/ea.length:rR;
+const cT=pc(rC,eC),ctT=pc(rR,eR);const tS=sorted.reduce((s,d)=>s+sf(d.spend),0),tP=sorted.reduce((s,d)=>s+sf(d.actions_purchase),0);
+let sev='SAFE';const iss=[];if(rF>=3){sev='CRITICAL';iss.push('Extreme frequency')}else if(rF>=2.2){sev='DANGER';iss.push('High frequency')}else if(rF>=1.8){sev='WARNING';iss.push('Approaching fatigue')}
+if(cT>20)iss.push('CPM spiking');if(ctT<-15)iss.push('CTR dropping');if(tS>500&&tP===0){sev='CRITICAL';iss.push('Zero purchases')}
+if(iss.length>0){alerts.push({name:ad.name,severity:sev,issues:iss,cpm:rC,cpmTrend:cT,freq:rF,ctr:rR,ctrTrend:ctT,spend:tS,purchases:tP,action:sev==='CRITICAL'?'KILL — Replace immediately':sev==='DANGER'?'PAUSE — Prepare replacement':'WATCH — Monitor 48hrs'})}});
+return alerts.sort((a,b)=>({CRITICAL:0,DANGER:1,WARNING:2,SAFE:3}[a.severity]||3)-({CRITICAL:0,DANGER:1,WARNING:2,SAFE:3}[b.severity]||3));}
+
+function scoreAd(ad,avgCPM,avgCTR){let t=0;const plays=sf(ad.video_play_actions_video_view),p25=sf(ad.video_p25_watched_actions_video_view);let hr=plays>0?p25/plays:(avgCTR>0?sf(ad.ctr)/avgCTR*.25:.2);
+t+=hr>=.35?25:hr>=.28?20:hr>=.20?14:hr>=.12?7:0;const roas=sf(ad.spend)>0?sf(ad.action_values_purchase)/sf(ad.spend):0;t+=roas>=6?25:roas>=4?20:roas>=2.5?13:roas>=1?6:0;
+const atcR=sf(ad.clicks)>0?sf(ad.actions_add_to_cart)/sf(ad.clicks):0;t+=atcR>=.10?15:atcR>=.07?12:atcR>=.04?7:atcR>=.02?3:0;
+const p100=sf(ad.video_p100_watched_actions_video_view),comp=plays>0?p100/plays:null;t+=comp===null?5:comp>=.20?10:comp>=.12?7:comp>=.06?4:1;
+const freq=sf(ad.frequency);t+=freq<1.5?10:freq<1.8?8:freq<2.2?4:freq<2.8?1:0;
+const cpmR=avgCPM>0?sf(ad.cpm)/avgCPM:1;t+=cpmR<=.8?8:cpmR<=1?6:cpmR<=1.3?3:0;
+const spend=sf(ad.spend);t+=spend>=3000?4:spend>=1500?3:spend>=500?2:spend>=100?1:0;t+=2;
+let bk=t>=75?'SCALE':t>=55?'OPTIMIZE':t>=35?'WATCH':'KILL';if(spend>1000&&sf(ad.actions_purchase)===0)bk='KILL';if(freq>=3)bk='KILL';if(roas>=7&&hr>=.3)bk='SCALE';
+return{...ad,score:t,bucket:bk,roas,hookRate:hr,atcRate:atcR,freq,spend,collection:exColl(ad.website_destination_url)};}
+
+// ═══ STATE ═══
+let S={accounts:[],metaAccs:[],shopAccs:[],sel:null,shop:null,brand:'',tab:'scorecard',loading:{},
+  data:{meta90d:null,meta28d:null,meta7d:null,shop90d:null,periods:null,weekly:null,fatigue:null,scored:null}};
+const TABS=[{id:'scorecard',l:'Scorecard'},{id:'rolling',l:'90-Day Rolling'},{id:'weekly',l:'Weekly Cycles'},{id:'fatigue',l:'Ad Fatigue'},{id:'collections',l:'Collections'},{id:'states',l:'State Analysis'},{id:'creatives',l:'Creative Intel'}];
+
+// ═══ RENDER ═══
+function rAccs(){const g=$('accGrid'),ld=$('loader'),rb=$('retryBtn'),sn=$('shopNote');
+if(S.metaAccs.length>0){ld.classList.add('hidden');g.classList.remove('hidden');g.innerHTML=S.metaAccs.map((a,i)=>`<div class="acc-card" onclick="pickAcc(${i})"><div style="font-weight:600;font-size:15px">${a.name||a.account_name||'Meta Account'}</div><div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px">ID: ${a.account_id||a.id||'—'}</div><div style="font-family:var(--mono);font-size:10px;color:var(--saffron);margin-top:8px">Click to analyze →</div></div>`).join('');
+if(S.shopAccs.length){sn.classList.remove('hidden');sn.textContent='Shopify: '+S.shopAccs.map(s=>s.name||s.id).join(', ')+' (auto-matched)'}}
+else{ld.innerHTML='<div style="color:var(--saffron2);font-family:var(--mono)">No Meta accounts found</div><div style="color:var(--dim);font-size:12px;margin-top:6px">Check Windsor.ai connection</div>';rb.classList.remove('hidden')}}
+
+function rTabs(){$('tabBar').innerHTML=`<button class="tab-back" onclick="goBack()">← Brands</button>`+TABS.map(t=>`<button class="tab ${S.tab===t.id?'active':''}" onclick="swTab('${t.id}')">${t.l}</button>`).join('')}
+function rMeta(){$('metaRow').innerHTML=`<span><b>Account</b> ${S.sel?.account_id||S.sel?.id||'—'}</span><span><b>Brand</b> ${S.brand}</span><span><b>Source</b> Windsor.ai · live</span><span><b>Attribution</b> 7d-click / 1d-view</span>`}
+function rLoad(){$('loadStrip').innerHTML=Object.entries(S.loading).filter(([,v])=>v).map(([k])=>`<span class="loading-pill">● ${k}...</span>`).join('')}
+function rContent(){const el=$('content');switch(S.tab){case'scorecard':el.innerHTML=rScore();break;case'rolling':el.innerHTML=rRoll();break;case'weekly':el.innerHTML=rWeek();break;case'fatigue':el.innerHTML=rFat();break;case'collections':el.innerHTML=rColl();break;case'states':el.innerHTML=rState();break;case'creatives':el.innerHTML=rCreat();break}}
+function $(id){return document.getElementById(id)}
+
+// ─── Tab renderers (same analysis logic, just repackaged) ───
+function rScore(){const P=S.data.periods;if(!P)return'<div class="note">Loading 90-day data...</div>';const c=P[2],p=P[1];
+return`<h2><span class="n">01</span>Account Scorecard</h2><p class="lead">90-day performance in three 30-day windows. Recent vs middle period delta.</p>
+<div class="kpis">${kH('Spend',fI(c.spend),pc(c.spend,p.spend),'was '+fI(p.spend))}${kH('Revenue',fI(c.revenue),pc(c.revenue,p.revenue),'was '+fI(p.revenue))}${kH('ROAS',c.roas.toFixed(2)+'x',pc(c.roas,p.roas),'was '+p.roas.toFixed(2)+'x')}${kH('Purchases',fmt(c.purchases),pc(c.purchases,p.purchases),'was '+fmt(p.purchases))}${kH('CPM',fI(c.cpm),pc(c.cpm,p.cpm),'was '+fI(p.cpm),1)}${kH('CTR',c.ctr.toFixed(2)+'%',pc(c.ctr,p.ctr),'was '+p.ctr.toFixed(2)+'%')}${kH('ATC Rate',c.atcRate.toFixed(1)+'%',pc(c.atcRate,p.atcRate),'was '+p.atcRate.toFixed(1)+'%')}${kH('Cart→Buy',c.purchaseRate.toFixed(1)+'%',pc(c.purchaseRate,p.purchaseRate),'was '+p.purchaseRate.toFixed(1)+'%')}</div>
+<div style="overflow-x:auto;margin-top:18px"><table><tr><th style="text-align:left">Period</th><th>Days</th><th>Spend</th><th>Revenue</th><th>ROAS</th><th>Purchases</th><th>CPM</th><th>CTR</th><th>ATC%</th><th>Cart→Buy%</th><th>Freq</th></tr>
+${P.map(p=>`<tr><td class="nm">${p.label}<br><span style="font-size:10px;color:var(--dim);font-family:var(--mono)">${p.dateRange}</span></td><td>${p.days}</td><td>${fI(p.spend)}</td><td>${fI(p.revenue)}</td><td style="color:${p.roas>=2?'var(--green)':p.roas>=1?'var(--saffron2)':'var(--red)'}">${p.roas.toFixed(2)}</td><td>${fmt(p.purchases)}</td><td>${fI(p.cpm)}</td><td>${p.ctr.toFixed(2)}%</td><td>${p.atcRate.toFixed(1)}%</td><td>${p.purchaseRate.toFixed(1)}%</td><td style="color:${p.freq>2?'var(--red)':p.freq>1.5?'var(--saffron2)':'var(--muted)'}">${p.freq.toFixed(2)}</td></tr>`).join('')}</table></div>
+${P[2].roas<P[0].roas?`<div class="verdict" style="border-left-color:var(--red)"><b style="color:var(--red)">Declining:</b> <span style="color:var(--muted)">ROAS ${P[0].roas.toFixed(2)}x → ${P[1].roas.toFixed(2)}x → ${P[2].roas.toFixed(2)}x. Check creative fatigue & budget allocation.</span></div>`:P[2].roas>P[0].roas?`<div class="verdict" style="border-left-color:var(--green)"><b style="color:var(--green)">Improving:</b> <span style="color:var(--muted)">ROAS ${P[0].roas.toFixed(2)}x → ${P[2].roas.toFixed(2)}x. Account trending well.</span></div>`:''}`}
+
+function rRoll(){const P=S.data.periods;if(!P)return'<div class="note">Loading...</div>';const mS=Math.max(...P.map(p=>p.spend)),mR=Math.max(...P.map(p=>p.revenue)),col=['var(--saffron)','var(--indigo)','var(--teal)'];
+return`<h2><span class="n">02</span>90-Day Rolling</h2><p class="lead">Spend/revenue bars and funnel comparison across three periods.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+<div class="card" style="margin:0"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:14px">Spend</div>${P.map((p,i)=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;font-family:var(--mono)"><span>P${i+1}</span><span style="color:var(--paper)">${fI(p.spend)}</span></div><div style="height:22px;border-radius:5px;background:rgba(245,158,11,.08)"><div style="width:${p.spend/mS*100}%;height:100%;border-radius:5px;background:linear-gradient(90deg,rgba(245,158,11,.25),rgba(245,158,11,.55))"></div></div></div>`).join('')}</div>
+<div class="card" style="margin:0"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:14px">Revenue</div>${P.map((p,i)=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;font-family:var(--mono)"><span>P${i+1}</span><span style="color:var(--paper)">${fI(p.revenue)}</span></div><div style="height:22px;border-radius:5px;background:rgba(20,184,166,.08)"><div style="width:${mR>0?p.revenue/mR*100:0}%;height:100%;border-radius:5px;background:linear-gradient(90deg,rgba(20,184,166,.25),rgba(20,184,166,.55))"></div></div></div>`).join('')}</div></div>
+<div class="card"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:14px">Funnel Comparison</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+${P.map((p,i)=>{const st=[['Impressions',p.impr],['Clicks',p.clicks],['ATC',p.atc],['Checkout',p.ic],['Purchases',p.purchases]];const mx=st[0][1]||1;
+return`<div><div style="font-size:12px;font-weight:600;margin-bottom:8px">P${i+1}</div>${st.map((s,j)=>`<div class="step" style="background:${col[i]}0a"><div class="fill" style="width:${Math.max(4,s[1]/mx*100)}%;background:${col[i]}"></div><span class="sl">${s[0]}</span><span class="sv">${fmt(s[1])}</span></div>${j<st.length-1?`<div class="rate">↓ <b>${st[j+1][1]>0?(st[j+1][1]/s[1]*100).toFixed(1):'0'}%</b></div>`:''}`).join('')}<div style="font-family:var(--mono);font-size:11px;color:${col[i]};margin-top:6px;text-align:center">ROAS ${p.roas.toFixed(2)}x</div></div>`}).join('')}</div></div>`}
+
+function rWeek(){const W=S.data.weekly;if(!W)return'<div class="note">Loading...</div>';const mR=Math.max(...W.map(w=>w.roas),1),best=W.reduce((a,b)=>a.roas>b.roas?a:b),worst=W.reduce((a,b)=>a.roas<b.roas?a:b);
+return`<h2><span class="n">03</span>Weekly Cyclicality</h2><p class="lead">Do certain weeks perform better? Aggregated across the 90-day window — reveals salary-cycle patterns.</p>
+<div class="week-grid">${W.map((w,i)=>{const iB=w===best,iW=w===worst,col=iB?'var(--green)':iW?'var(--red)':'var(--saffron)';
+return`<div class="week-card ${iB?'best':iW?'worst':''}">${iB||iW?`<div style="position:absolute;top:10px;right:12px">${bg(iB?'BEST':'WEAKEST',iB?'green':'red')}</div>`:''}<div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${col}">${w.label}</div><div style="font-family:var(--mono);font-size:10px;color:var(--dim)">Days ${i*7+1}–${Math.min((i+1)*7,30)}</div>
+<div style="margin-top:12px;height:28px;border-radius:6px;background:${col}14;display:flex;align-items:center;padding:0 10px;position:relative;overflow:hidden"><div style="position:absolute;left:0;height:28px;width:${w.roas/mR*100}%;background:${col}28;border-radius:6px"></div><span style="font-family:var(--mono);font-size:13px;font-weight:600;z-index:1">ROAS ${w.roas.toFixed(2)}x</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:12px;font-family:var(--mono);font-size:11px"><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">Avg Spend/d</div>${fI(w.avgSpend)}</div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">Avg Rev/d</div>${fI(w.avgRevenue)}</div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">Avg Buys/d</div>${w.avgPurchases.toFixed(1)}</div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">CPM</div>${fI(w.cpm)}</div></div></div>`}).join('')}</div>
+<div class="note"><b>Insight:</b> ${best.label} = ${best.roas.toFixed(2)}x ROAS vs ${worst.label} = ${worst.roas.toFixed(2)}x.${best.roas>worst.roas*1.3?` <span style="color:var(--saffron)">Strong cyclicality — front-load budget in ${best.label}.</span>`:''}</div>`}
+
+function rFat(){const A=S.data.fatigue;if(!A)return'<div class="note">Loading 7-day ad fatigue data...</div>';if(!A.length)return'<h2><span class="n">04</span>Ad Fatigue</h2><p class="lead">7-day day-by-day trend per ad.</p><div class="card" style="text-align:center;color:var(--teal);font-family:var(--mono)">All ads healthy.</div>';
+const ns=(S.data.scored||[]).filter(a=>a.spend===0&&(a.effective_status||'').toLowerCase()==='active');
+return`<h2><span class="n">04</span>Ad Fatigue & Replacement Alerts</h2><p class="lead">Flags: rising CPM, declining reach, high frequency, zero purchases.</p>
+<div class="kpis" style="grid-template-columns:repeat(3,1fr)">${kH('Critical',A.filter(a=>a.severity==='CRITICAL').length,null,'Immediate action')}${kH('Danger',A.filter(a=>a.severity==='DANGER').length,null,'Prepare replacements')}${kH('Budget at Risk',fI(A.filter(a=>a.severity==='CRITICAL'||a.severity==='DANGER').reduce((s,a)=>s+a.spend,0)),null,'In fatigued ads')}</div>
+${ns.length>0?`<div style="margin-top:12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:14px;font-family:var(--mono);font-size:12px;color:var(--saffron2)">⚡ ${ns.length} ads ACTIVE but not serving (zero spend)<div style="margin-top:6px;font-size:11px;color:var(--dim)">${ns.slice(0,5).map(a=>'· '+(a.ad_name||'').slice(0,55)).join('<br>')}</div></div>`:''}
+${A.slice(0,15).map(a=>`<div class="alert-card ${a.severity.toLowerCase()}"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="flex:1;min-width:200px"><div style="font-size:13px;font-weight:600">${(a.name||'').slice(0,60)}</div><div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">${bg(a.severity,a.severity==='CRITICAL'?'red':'amber')} ${a.issues.map(i=>bg(i,'muted')).join(' ')}</div></div>
+<div style="display:flex;gap:14px;font-family:var(--mono);font-size:11px"><div style="text-align:center"><div style="color:var(--dim);font-size:9px">CPM</div>${fI(a.cpm)}<br>${dH(a.cpmTrend,1)}</div><div style="text-align:center"><div style="color:var(--dim);font-size:9px">FREQ</div><span style="color:${a.freq>=2.2?'var(--red)':a.freq>=1.8?'var(--saffron2)':'var(--paper)'}">${a.freq.toFixed(2)}</span></div><div style="text-align:center"><div style="color:var(--dim);font-size:9px">SPEND</div>${fI(a.spend)}</div></div></div>
+<div style="margin-top:8px;font-family:var(--mono);font-size:11px;color:${a.severity==='CRITICAL'?'var(--red)':'var(--saffron2)'};font-weight:600">→ ${a.action}</div></div>`).join('')}`}
+
+function rColl(){const SC=S.data.scored;if(!SC?.length)return'<div class="note">Loading collections from ad URLs...</div>';const byC={};SC.forEach(ad=>{const c=ad.collection||'Unknown';if(!byC[c])byC[c]={ads:[],spend:0,revenue:0,purchases:0,clicks:0,atc:0,impr:0};byC[c].ads.push(ad);byC[c].spend+=ad.spend;byC[c].revenue+=sf(ad.action_values_purchase);byC[c].purchases+=sf(ad.actions_purchase);byC[c].clicks+=sf(ad.clicks);byC[c].atc+=sf(ad.actions_add_to_cart);byC[c].impr+=sf(ad.impressions)});
+const sorted=Object.entries(byC).sort((a,b)=>b[1].spend-a[1].spend);const tS=sorted.reduce((s,[,v])=>s+v.spend,0);
+return`<h2><span class="n">05</span>Collections (URL Mapped)</h2><p class="lead">Destination URL parsed to identify collection/product page.</p>
+${sorted.map(([n,d])=>{const r=d.spend>0?d.revenue/d.spend:0,aR=d.clicks>0?d.atc/d.clicks*100:0,pR=d.atc>0?d.purchases/d.atc*100:0,sh=tS>0?d.spend/tS*100:0,cp=d.impr>0?d.spend/d.impr*1000:0;
+return`<div class="card"><div class="card-head"><span class="nm">${n}</span><span class="badge ${r>=1.5?'badge-green':'badge-red'}">ROAS ${r.toFixed(2)} · ${sh.toFixed(0)}% budget</span></div>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;font-family:var(--mono);font-size:11px"><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">Spend</div>${fI(d.spend)}</div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">Revenue</div><span style="color:var(--teal)">${fI(d.revenue)}</span></div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">Purchases</div>${d.purchases}</div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">CPM</div>${fI(cp)}</div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">ATC%</div>${aR.toFixed(1)}%</div><div><div style="color:var(--dim);font-size:9px;text-transform:uppercase">Cart→Buy</div><span style="color:${pR<15?'var(--red)':'var(--paper)'}">${pR.toFixed(1)}%</span></div></div>
+${[['Clicks',d.clicks],['ATC',d.atc],['Purchases',d.purchases]].map(([l,v])=>`<div class="step" style="background:var(--saffron)0a"><div class="fill" style="width:${Math.max(3,v/(d.clicks||1)*100)}%;background:var(--saffron)"></div><span class="sl">${l}</span><span class="sv">${fmt(v)}</span></div>`).join('')}
+<div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--dim)">${d.ads.length} ads</div></div>`}).join('')}`}
+
+function rState(){const D=S.data.shop90d;if(!D?.length)return`<div class="note"><b>State Analysis (Shopify)</b><br>${S.shop?'Loading Shopify data...':'No Shopify connected. Add Shopify in Windsor.ai for state-level data.'}</div>`;
+const byS={};D.forEach(o=>{const st=o.order_shipping_province||o.order_billing_province||'Unknown';if(!byS[st])byS[st]={orders:0,revenue:0};if(sf(o.order_count)===1){byS[st].orders++;byS[st].revenue+=sf(o.order_total_price)}});
+const sorted=Object.entries(byS).filter(([k])=>k&&k!=='Unknown'&&k!=='null').sort((a,b)=>b[1].revenue-a[1].revenue);const tR=sorted.reduce((s,[,v])=>s+v.revenue,0),tO=sorted.reduce((s,[,v])=>s+v.orders,0),mR=sorted[0]?.[1]?.revenue||1;
+return`<h2><span class="n">06</span>State Analysis (Shopify)</h2><p class="lead">Actual purchase data from shipping addresses — ground truth.</p>
+<div class="kpis" style="grid-template-columns:repeat(3,1fr)">${kH('States',sorted.length,null,'')}${kH('Orders',fmt(tO),null,'')}${kH('Revenue',fI(tR),null,'')}</div>
+<div style="overflow-x:auto;margin-top:14px"><table><tr><th style="text-align:left">State</th><th>Revenue</th><th>Share</th><th>Orders</th><th>AOV</th><th style="width:120px"></th></tr>
+${sorted.slice(0,15).map(([st,d])=>`<tr><td class="nm">${st}</td><td>${fI(d.revenue)}</td><td style="color:var(--saffron2)">${(d.revenue/tR*100).toFixed(1)}%</td><td>${d.orders}</td><td>${fI(d.orders>0?d.revenue/d.orders:0)}</td><td><div style="height:8px;border-radius:4px;background:rgba(245,158,11,.08)"><div style="width:${d.revenue/mR*100}%;height:100%;border-radius:4px;background:var(--saffron)"></div></div></td></tr>`).join('')}</table></div>
+${sorted.length>=2?`<div class="note"><b>Concentration:</b> Top 2 (${sorted[0][0]} + ${sorted[1][0]}) = ${((sorted[0][1].revenue+sorted[1][1].revenue)/tR*100).toFixed(0)}% of revenue.${((sorted[0][1].revenue+sorted[1][1].revenue)/tR)>.7?' <span style="color:var(--saffron)">High concentration — test new regions.</span>':''}</div>`:''}`}
+
+function rCreat(){const SC=S.data.scored;if(!SC?.length)return'<div class="note">Loading creative scoring...</div>';const bc={SCALE:'green',OPTIMIZE:'blue',WATCH:'amber',KILL:'red'};const bk={SCALE:[],OPTIMIZE:[],WATCH:[],KILL:[]};SC.forEach(a=>{if(bk[a.bucket])bk[a.bucket].push(a)});const tS=SC.reduce((s,a)=>s+a.spend,0),kS=bk.KILL.reduce((s,a)=>s+a.spend,0);
+return`<h2><span class="n">07</span>Creative Intelligence</h2><p class="lead">8-dimension scoring: Hook(25) + ROAS(25) + ATC(15) + Completion(10) + Frequency(10) + CPM(8) + Volume(4) + Trend(3) = /100.</p>
+<div class="bucket-grid">${Object.entries(bk).map(([b,ads])=>`<div class="bucket-card" style="border:1px solid var(--${bc[b]})33"><div style="font-family:var(--mono);font-size:11px;color:var(--${bc[b]});font-weight:700">${b}</div><div style="font-family:var(--mono);font-size:26px;font-weight:700;margin-top:4px">${ads.length}</div><div style="font-family:var(--mono);font-size:10px;color:var(--dim)">${fI(ads.reduce((s,a)=>s+a.spend,0))}</div></div>`).join('')}</div>
+${kS>0?`<div style="margin-top:12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:14px;font-family:var(--mono);font-size:12px;color:var(--red)">⚠ ${fI(kS)} (${(kS/tS*100).toFixed(0)}%) wasted on KILL ads. Pause immediately.</div>`:''}
+<div style="overflow-x:auto;margin-top:14px"><table style="min-width:800px"><tr><th>#</th><th style="text-align:left">Ad Name</th><th style="text-align:left">Collection</th><th>Score</th><th>Status</th><th>ROAS</th><th>Hook%</th><th>Freq</th><th>Spend</th><th>Buys</th></tr>
+${SC.sort((a,b)=>b.score-a.score).slice(0,30).map((a,i)=>`<tr${i%2===0?' style="background:rgba(255,255,255,.01)"':''}><td style="color:var(--dim)">${i+1}</td><td class="nm" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.ad_name||'—'}</td><td style="color:var(--muted);font-family:var(--sans);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.collection}</td><td><span style="background:var(--${bc[a.bucket]})18;color:var(--${bc[a.bucket]});padding:2px 8px;border-radius:8px;font-weight:700">${a.score}</span></td><td>${bg(a.bucket,bc[a.bucket])}</td><td style="color:${a.roas>=2?'var(--green)':a.roas>=1?'var(--saffron2)':'var(--red)'}">${a.roas.toFixed(2)}</td><td>${a.hookRate!=null?(a.hookRate*100).toFixed(0)+'%':'N/A'}</td><td style="color:${a.freq>=2.2?'var(--red)':a.freq>=1.8?'var(--saffron2)':'var(--paper)'}">${a.freq.toFixed(2)}</td><td>${fI(a.spend)}</td><td>${sf(a.actions_purchase)}</td></tr>`).join('')}</table></div>`}
+
+// ═══ ACTIONS ═══
+function swTab(id){S.tab=id;rTabs();rContent()}
+function goBack(){S.sel=null;S.brand='';$('dash').classList.add('hidden');$('selView').classList.remove('hidden');$('hTitle').innerHTML='Select a brand<br><em>to begin analysis</em>';$('hSub').textContent='Live Windsor.ai data across Meta Ads & Shopify.'}
+function pickAcc(idx){const a=S.metaAccs[idx],id=a.account_id||a.id;const sh=S.shopAccs.find(s=>(s.name||'').toLowerCase().includes((a.name||'').toLowerCase().split(' ')[0]))||S.shopAccs[0]||null;
+S.sel=a;S.shop=sh;S.brand=a.name||a.account_name||'Account '+id;S.tab='scorecard';S.data={meta90d:null,meta28d:null,meta7d:null,shop90d:null,periods:null,weekly:null,fatigue:null,scored:null};
+$('selView').classList.add('hidden');$('dash').classList.remove('hidden');$('hTitle').innerHTML=S.brand+'<br><em>Performance Command Center</em>';$('hSub').textContent='';rTabs();rMeta();rContent();loadData(id)}
+
+async function loadData(accId){
+  S.loading={meta90d:true,meta28d:true,meta7d:true,shopify:!!S.shop};rLoad();
+  // Meta 90d daily
+  wdData('facebook',['date','spend','impressions','clicks','ctr','cpm','actions_purchase','action_values_purchase','actions_add_to_cart','actions_initiate_checkout','frequency','reach'],{date_preset:'last_90d',accounts:accId}).then(res=>{
+    const arr=res?.data||res||[];S.data.meta90d=Array.isArray(arr)?arr:[];S.data.periods=proc3P(S.data.meta90d);S.data.weekly=procWeekly(S.data.meta90d);S.loading.meta90d=false;rLoad();rContent()});
+  // Meta 28d ad-level
+  wdData('facebook',['ad_name','ad_id','campaign','adset_name','effective_status','spend','impressions','clicks','ctr','cpm','cpc','frequency','reach','actions_add_to_cart','actions_initiate_checkout','actions_purchase','action_values_purchase','cost_per_action_type_purchase','website_purchase_roas_offsite_conversion_fb_pixel_purchase','video_play_actions_video_view','video_p25_watched_actions_video_view','video_p50_watched_actions_video_view','video_p75_watched_actions_video_view','video_p100_watched_actions_video_view','website_destination_url'],{date_preset:'last_28d',accounts:accId}).then(res=>{
+    const arr=Array.isArray(res?.data||res)?res?.data||res:[];S.data.meta28d=arr;
+    const tS=arr.reduce((s,a)=>s+sf(a.spend),0),tI=arr.reduce((s,a)=>s+sf(a.impressions),0),tC=arr.reduce((s,a)=>s+sf(a.clicks),0);
+    S.data.scored=arr.filter(a=>sf(a.impressions)>=100).map(a=>scoreAd(a,tI>0?tS/tI*1000:300,tI>0?tC/tI:.03));S.loading.meta28d=false;rLoad();rContent()});
+  // Meta 7d daily ad-level
+  wdData('facebook',['date','ad_id','ad_name','spend','impressions','clicks','ctr','cpm','frequency','reach','actions_purchase','action_values_purchase','effective_status'],{date_preset:'last_7d',accounts:accId}).then(res=>{
+    const arr=Array.isArray(res?.data||res)?res?.data||res:[];S.data.meta7d=arr;S.data.fatigue=procFatigue(arr);S.loading.meta7d=false;rLoad();rContent()});
+  // Shopify
+  if(S.shop){wdData('shopify',['date','order_count','order_total_price','order_gross_sales','order_net_sales','order_financial_status','order_cancel_reason','order_return_status','order_sales_channel','order_quantity','order_shipping_province','order_billing_province'],{date_preset:'last_90d',date_filters:JSON.stringify({orders:'createdAt'})}).then(res=>{
+    S.data.shop90d=Array.isArray(res?.data||res)?res?.data||res:[];S.loading.shopify=false;rLoad();rContent()})}
+}
+
+async function loadAccounts(){
+  $('loader').classList.remove('hidden');$('loader').innerHTML='<div style="color:var(--saffron);font-family:var(--mono)">Connecting to Windsor.ai...</div>';$('accGrid').classList.add('hidden');$('retryBtn').classList.add('hidden');
+  const res=await wdConnectors();let conns=Array.isArray(res)?res:res?.data||res?.connectors||[];
+  let all=[];conns.forEach(c=>{if(c.accounts&&Array.isArray(c.accounts))c.accounts.forEach(a=>all.push({...a,connector:c.connector||c.name}));else all.push(c)});
+  S.metaAccs=all.filter(a=>{const cn=(a.connector||a.type||a.source||'').toLowerCase();return cn.includes('facebook')||cn.includes('meta')});
+  S.shopAccs=all.filter(a=>(a.connector||a.type||a.source||'').toLowerCase().includes('shopify'));
+  rAccs();
+}
+// ═══ BOOT ═══
+(async function(){
+  // Try Vercel proxy first
+  try{const t=await fetch('/api/windsor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:'connectors'})});if(t.ok){initDash();return}}catch{}
+  // Try stored encrypted key
+  if(await loadKey()){initDash();return}
+  // Show key entry
+  showSetup()
+})();
+</script>
+</body>
+</html>
