@@ -282,7 +282,7 @@ footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);color:v
 
   <!-- Weekly creative fatigue -->
   <div class="section">
-    <h2>Creative fatigue · last 4 weeks <span class="tag meta">ad-wise</span></h2>
+    <h2>Creative fatigue · last 2 weeks <span class="tag meta">ad-wise</span></h2>
     <p class="cap">Per-ad week-on-week trend. Fatigue = CPM rising / CTR falling. Pick a metric to chart the top ads; the table flags each ad automatically.</p>
     <div class="grid2">
       <div class="card">
@@ -971,7 +971,7 @@ async function liveRefresh(){
       const now=new Date();
       const adWeeks={};
       const weekNums=[];
-      for(let wi=3;wi>=0;wi--){
+      for(let wi=1;wi>=0;wi--){
         const wEnd=new Date(now.getTime()-(wi*7)*86400000);
         const wStart=new Date(wEnd.getTime()-7*86400000);
         const wk=getISOWeek(wStart);
@@ -1003,14 +1003,14 @@ async function liveRefresh(){
       const weeks=weekNums;
       const fatAds=Object.values(adWeeks).filter(a=>{
         const active=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;
-        return active>=3 && a.tot.sp>2000;
+        return active>=1 && a.tot.sp>1000;
       }).sort((a,b)=>b.tot.sp-a.tot.sp).slice(0,20);
       fatAds.forEach(a=>{
-        weeks.forEach(w=>{a.weeks[w]=a.weeks[w]||{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,vv:0};});
+        weeks.forEach(w=>{a.weeks[w]=a.weeks[w]||{sp:0,im:0,cl:0,pu:0,rev:0,vv:0,atc:0,ic:0};});
         const wd=weeks.map(w=>fatDerive(a.weeks[w]));
-        const first=(wd[0].sp+wd[1].sp)/2,last=(wd[2].sp+wd[3].sp)/2;
-        const firstPu=(wd[0].pu+wd[1].pu)/2,lastPu=(wd[2].pu+wd[3].pu)/2;
-        const firstCpm=(wd[0].cpm+wd[1].cpm)/2,lastCpm=(wd[2].cpm+wd[3].cpm)/2;
+        const first=wd[0].sp,last=wd[wd.length-1].sp;
+        const firstPu=wd[0].pu,lastPu=wd[wd.length-1].pu;
+        const firstCpm=wd[0].cpm,lastCpm=wd[wd.length-1].cpm;
         if(last<first*0.4){a.signal='Throttled ↓';a.reason='Spend cut sharply';}
         else if(lastPu>=firstPu*1.03&&last>=first*0.8){a.signal='Scaling ✅';a.reason='Spend & purchases rising';}
         else if(a.tot.sp>5000&&a.tot.pu<2){a.signal='Weak 🔴';a.reason='High spend, low purchases';}
