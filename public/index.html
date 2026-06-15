@@ -403,7 +403,7 @@ function collectionOf(link){
 function buildWindows(){
   const now=new Date(),y=now.getFullYear(),m=now.getMonth(); // 0-indexed
   const wins=[];
-  for(let i=3;i>=0;i--){
+  for(let i=1;i>=0;i--){
     let ym=m-i, yr=y;
     if(ym<0){ym+=12;yr--;}
     const mm=String(ym+1).padStart(2,'0');
