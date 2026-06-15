@@ -836,210 +836,129 @@ async function liveRefresh(){
       byproduct:{},bycollection:{},nourl:[],gprod:[],weeklyFatigue:null,weeklyStarved:null,
       accounts:{meta:acMeta,google:acG,shopify:acS},brandName,plan:null};
 
-    /* ═══════════════════════════════════════
-       PHASE 1: Meta MONTHLY aggregates
-       Basic fields: 1 call full month (no date = aggregated)
-       Action fields: 10-day windows (no date = aggregated)
-       ═══════════════════════════════════════ */
-    step.textContent='Phase 1/5 · Meta monthly aggregates…';
+    // Helper: run async tasks with concurrency limit + 1 retry
+    async function pool(tasks,limit=4){
+      const results=[];let i=0;
+      async function run(){while(i<tasks.length){const idx=i++;
+        try{results[idx]=await tasks[idx]();}catch(e){
+          try{results[idx]=await tasks[idx]();}catch(e2){results[idx]=null;}}}}
+      await Promise.all(Array.from({length:Math.min(limit,tasks.length)},()=>run()));
+      return results;
+    }
+    function chunks(from,to,days){const c=[];let cur=new Date(from);const end=new Date(to);
+      while(cur<end){const ce=new Date(Math.min(cur.getTime()+days*864e5,end.getTime()));
+        c.push([cur.toISOString().slice(0,10),ce.toISOString().slice(0,10)]);cur=ce;}return c;}
+
+    /* ═══ PHASE 1: Meta monthly aggregates — PARALLEL ═══ */
+    step.textContent='Phase 1/5 · Meta aggregates…';
     const mm={};d.labels.forEach(l=>mm[l]={sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0,ads:0});
+    const p1=[];
     for(const w of WINDOWS){
-      try{
-        // Basic fields — full month, no date = 1 row per account
-        const basic=await wfetch('facebook',{date_from:w.from,date_to:w.to,
-          fields:'account_id,spend,impressions,clicks'});
-        const brow=basic.filter(r=>String(r.account_id)===String(acMeta))[0]||{};
-        const o=mm[w.label];
-        o.sp+=+brow.spend||0;o.im+=+brow.impressions||0;o.cl+=+brow.clicks||0;
-        step.textContent='Phase 1 · '+w.label+' basics ✓';
-
-        // Action fields — 10-day windows, no date
-        const from=new Date(w.from),to=new Date(w.to);
-        let cur=new Date(from);
-        while(cur<to){
-          const chunkEnd=new Date(Math.min(cur.getTime()+10*86400000,to.getTime()));
-          const cf=cur.toISOString().slice(0,10),ct=chunkEnd.toISOString().slice(0,10);
-          try{
-            const acts=await wfetch('facebook',{date_from:cf,date_to:ct,
-              fields:'account_id,actions_purchase,action_values_purchase,actions_add_to_cart,actions_initiate_checkout'});
-            const arow=acts.filter(r=>String(r.account_id)===String(acMeta))[0]||{};
-            o.atc+=+arow.actions_add_to_cart||0;o.ic+=+arow.actions_initiate_checkout||0;
-            o.pu+=+arow.actions_purchase||0;o.rev+=+arow.action_values_purchase||0;
-          }catch(e2){console.warn('Action chunk skipped:',cf,e2);}
-          cur=chunkEnd;
-        }
-        step.textContent='Phase 1 · '+w.label+' ✓';
-      }catch(e){step.textContent='Phase 1 · '+w.label+' ⚠';console.warn(e);}
+      p1.push(async()=>{const r=await wfetch('facebook',{date_from:w.from,date_to:w.to,fields:'account_id,spend,impressions,clicks'});
+        const b=r.filter(x=>String(x.account_id)===String(acMeta))[0]||{};
+        return{l:w.label,t:'b',sp:+b.spend||0,im:+b.impressions||0,cl:+b.clicks||0};});
+      for(const[cf,ct] of chunks(w.from,w.to,5)){const lbl=w.label;
+        p1.push(async()=>{const r=await wfetch('facebook',{date_from:cf,date_to:ct,
+          fields:'account_id,actions_purchase,action_values_purchase,actions_add_to_cart,actions_initiate_checkout'});
+          const a=r.filter(x=>String(x.account_id)===String(acMeta))[0]||{};
+          return{l:lbl,t:'a',atc:+a.actions_add_to_cart||0,ic:+a.actions_initiate_checkout||0,
+            pu:+a.actions_purchase||0,rev:+a.action_values_purchase||0};});}
     }
-    d.meta=mm;
+    (await pool(p1,4)).filter(Boolean).forEach(r=>{const o=mm[r.l];
+      if(r.t==='b'){o.sp+=r.sp;o.im+=r.im;o.cl+=r.cl;}else{o.atc+=r.atc;o.ic+=r.ic;o.pu+=r.pu;o.rev+=r.rev;}});
+    d.meta=mm;step.textContent='Phase 1 ✓';
 
-    /* ═══════════════════════════════════════
-       PHASE 2: Meta AD-LEVEL (last month only, 3-day windows)
-       For collections, products, no-URL analysis
-       ═══════════════════════════════════════ */
-    step.textContent='Phase 2/5 · Meta ad-level detail…';
-    const allRows=[];
-    const lastMonth=WINDOWS[WINDOWS.length-1];
-    {
-      const from=new Date(lastMonth.from),to=new Date(lastMonth.to);
-      let cur=new Date(from);let chunk=0;
-      while(cur<to){
-        const chunkEnd=new Date(Math.min(cur.getTime()+3*86400000,to.getTime()));
-        const cf=cur.toISOString().slice(0,10),ct=chunkEnd.toISOString().slice(0,10);
-        chunk++;
-        try{
-          const rows=await wfetch('facebook',{date_from:cf,date_to:ct,
-            fields:'account_id,ad_name,campaign,website_destination_url,spend,actions_purchase,action_values_purchase'});
-          rows.filter(r=>String(r.account_id)===String(acMeta)).forEach(r=>allRows.push({
-            label:lastMonth.label,ad:r.ad_name,camp:r.campaign,link:r.website_destination_url,
-            sp:+r.spend||0,im:0,cl:0,atc:0,ic:0,pu:+r.actions_purchase||0,rev:+r.action_values_purchase||0}));
-          step.textContent='Phase 2 · chunk '+chunk+' ('+allRows.length+' ads)';
-        }catch(e){step.textContent='Phase 2 · chunk '+chunk+' ⚠';console.warn(e);}
-        cur=chunkEnd;
-      }
-    }
-    // Aggregate ad-level rows by ad_name (since we pulled in chunks)
-    const adAgg={};
-    allRows.forEach(r=>{
-      const k=r.ad+'||'+r.camp+'||'+r.link;
-      const a=adAgg[k]=adAgg[k]||{label:r.label,ad:r.ad,camp:r.camp,link:r.link,sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0};
-      a.sp+=r.sp;a.pu+=r.pu;a.rev+=r.rev;
-    });
+    /* ═══ PHASE 2: Meta ad-level — last month, 3-day parallel ═══ */
+    step.textContent='Phase 2/5 · Meta ad detail…';
+    const allRows=[];const lastMonth=WINDOWS[WINDOWS.length-1];
+    const p2=chunks(lastMonth.from,lastMonth.to,3).map(([cf,ct])=>async()=>{
+      const r=await wfetch('facebook',{date_from:cf,date_to:ct,
+        fields:'account_id,ad_name,campaign,website_destination_url,spend,actions_purchase,action_values_purchase'});
+      return r.filter(x=>String(x.account_id)===String(acMeta)).map(x=>({
+        label:lastMonth.label,ad:x.ad_name,camp:x.campaign,link:x.website_destination_url,
+        sp:+x.spend||0,pu:+x.actions_purchase||0,rev:+x.action_values_purchase||0}));});
+    (await pool(p2,3)).filter(Boolean).forEach(ch=>ch.forEach(r=>allRows.push(r)));
+    step.textContent='Phase 2 ✓ '+allRows.length+' ads';
+    const adAgg={};allRows.forEach(r=>{const k=r.ad+'||'+r.camp+'||'+r.link;
+      const a=adAgg[k]=adAgg[k]||{label:r.label,ad:r.ad,camp:r.camp,link:r.link,sp:0,pu:0,rev:0};
+      a.sp+=r.sp;a.pu+=r.pu;a.rev+=r.rev;});
     const aggRows=Object.values(adAgg);
-    // build product / collection / no-url
     const prod={},coll={},nour={};
     aggRows.forEach(r=>{
       const p=classifyProduct(r.ad);(prod[p]=prod[p]||{})[r.label]=(prod[p][r.label]||0)+r.rev;
       const c=collectionOf(r.link);(coll[c]=coll[c]||{})[r.label]=(coll[c][r.label]||0)+r.rev;
-      if(c==='no-url (catalogue/boost)'){
-        const kk=r.ad+'||'+r.camp;
-        const a=nour[kk]=nour[kk]||{ad:r.ad,camp:r.camp,tot:{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0},months:{}};
-        const mo=a.months[r.label]=a.months[r.label]||{sp:0,im:0,cl:0,atc:0,ic:0,pu:0,rev:0};
-        ['sp','pu','rev'].forEach(k=>{a.tot[k]+=r[k];mo[k]+=r[k];});
-      }
-    });
-    d.byproduct=prod;d.bycollection=coll;
-    d.nourl=Object.values(nour).sort((a,b)=>b.tot.sp-a.tot.sp);
+      if(c==='no-url (catalogue/boost)'){const kk=r.ad+'||'+r.camp;
+        const a=nour[kk]=nour[kk]||{ad:r.ad,camp:r.camp,tot:{sp:0,pu:0,rev:0},months:{}};
+        const mo=a.months[r.label]=a.months[r.label]||{sp:0,pu:0,rev:0};
+        ['sp','pu','rev'].forEach(k=>{a.tot[k]+=r[k];mo[k]+=r[k];});}});
+    d.byproduct=prod;d.bycollection=coll;d.nourl=Object.values(nour).sort((a,b)=>b.tot.sp-a.tot.sp);
 
-    /* ═══════════════════════════════════════
-       PHASE 3: Google + Shopify
-       ═══════════════════════════════════════ */
-    if(acG){
-      step.textContent='Phase 3/5 · Google Ads…';
-      const gNorm=acG.replace(/-/g,'');
-      for(const w of WINDOWS){
-        try{
-          const sp=await wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'customer_id,cost,clicks,impressions'});
-          const rv=await wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'customer_id,conversion_action_name,all_conversions_value,conversions'});
-          const fsp=sp.filter(x=>String(x.customer_id||'').replace(/-/g,'')===gNorm);
-          const frv=rv.filter(x=>String(x.customer_id||'').replace(/-/g,'')===gNorm);
-          const s=fsp.reduce((a,x)=>({cost:a.cost+(+x.cost||0),clicks:a.clicks+(+x.clicks||0),impr:a.impr+(+x.impressions||0)}),{cost:0,clicks:0,impr:0});
-          let rev=0,conv=0;frv.forEach(x=>{if((x.conversion_action_name||'').toLowerCase().includes('purchase')){rev+=+x.all_conversions_value||0;conv+=+x.conversions||0;}});
-          d.google[w.label]={cost:s.cost,clicks:s.clicks,impr:s.impr,rev,conv};
-          step.textContent='Phase 3 · Google '+w.label+' ✓';
-        }catch(e){d.google[w.label]={cost:0,clicks:0,impr:0,rev:0,conv:0};}
-      }
-      try{
-        const gpRows=[];
-        const prd=await wfetch('google_ads',{date_from:lastMonth.from,date_to:lastMonth.to,fields:'customer_id,product_title,all_conversions_value'});
-        prd.filter(x=>String(x.customer_id||'').replace(/-/g,'')===gNorm).forEach(r=>{
-          if(+r.all_conversions_value>0)gpRows.push({name:r.product_title||'(unknown)',label:lastMonth.label,rev:+r.all_conversions_value});});
-        const gpMap={};
-        gpRows.forEach(r=>{gpMap[r.name]=gpMap[r.name]||{name:r.name,months:{},tot:0};gpMap[r.name].months[r.label]=(gpMap[r.name].months[r.label]||0)+r.rev;gpMap[r.name].tot+=r.rev;});
-        d.gprod=Object.values(gpMap).sort((a,b)=>b.tot-a.tot).slice(0,50);
-      }catch(e){}
-    }else{
-      d.labels.forEach(l=>d.google[l]={cost:0,clicks:0,impr:0,rev:0,conv:0});
-    }
-
-    if(acS){
-      step.textContent='Phase 3/5 · Shopify…';
-      for(const w of WINDOWS){
-        try{
-          const sh=await wfetch('shopify',{date_from:w.from,date_to:w.to,fields:'order_total_price,order_total_count'});
-          const tot=sh.reduce((a,x)=>({total:a.total+(+x.order_total_price||0),orders:a.orders+(+x.order_total_count||0)}),{total:0,orders:0});
-          d.shopify[w.label]=tot.total>0?{total:tot.total,orders:tot.orders}:null;
-        }catch(e){d.shopify[w.label]=null;}
-      }
+    /* ═══ PHASE 3: Google + Shopify — PARALLEL ═══ */
+    step.textContent='Phase 3/5 · Google + Shopify…';
+    if(acG){const gN=acG.replace(/-/g,'');
+      const p3=WINDOWS.map(w=>async()=>{
+        const[sp,rv]=await Promise.all([
+          wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'customer_id,cost,clicks,impressions'}),
+          wfetch('google_ads',{date_from:w.from,date_to:w.to,fields:'customer_id,conversion_action_name,all_conversions_value,conversions'})]);
+        const fs=sp.filter(x=>String(x.customer_id||'').replace(/-/g,'')===gN);
+        const fr=rv.filter(x=>String(x.customer_id||'').replace(/-/g,'')===gN);
+        const s=fs.reduce((a,x)=>({cost:a.cost+(+x.cost||0),clicks:a.clicks+(+x.clicks||0),impr:a.impr+(+x.impressions||0)}),{cost:0,clicks:0,impr:0});
+        let rev=0,conv=0;fr.forEach(x=>{if((x.conversion_action_name||'').toLowerCase().includes('purchase')){rev+=+x.all_conversions_value||0;conv+=+x.conversions||0;}});
+        return{label:w.label,...s,rev,conv};});
+      (await pool(p3,3)).forEach(r=>{if(r)d.google[r.label]={cost:r.cost,clicks:r.clicks,impr:r.impr,rev:r.rev,conv:r.conv};});
+      WINDOWS.forEach(w=>{d.google[w.label]=d.google[w.label]||{cost:0,clicks:0,impr:0,rev:0,conv:0};});
+      try{const prd=await wfetch('google_ads',{date_from:lastMonth.from,date_to:lastMonth.to,fields:'customer_id,product_title,all_conversions_value'});
+        const gm={};prd.filter(x=>String(x.customer_id||'').replace(/-/g,'')===gN&&+x.all_conversions_value>0).forEach(r=>{
+          const n=r.product_title||'?';gm[n]=gm[n]||{name:n,months:{},tot:0};gm[n].months[lastMonth.label]=(gm[n].months[lastMonth.label]||0)+(+r.all_conversions_value);gm[n].tot+=+r.all_conversions_value;});
+        d.gprod=Object.values(gm).sort((a,b)=>b.tot-a.tot).slice(0,50);}catch(e){}
+    }else{d.labels.forEach(l=>d.google[l]={cost:0,clicks:0,impr:0,rev:0,conv:0});}
+    if(acS){const sh3=WINDOWS.map(w=>async()=>{
+        const sh=await wfetch('shopify',{date_from:w.from,date_to:w.to,fields:'order_total_price,order_total_count'});
+        const t=sh.reduce((a,x)=>({total:a.total+(+x.order_total_price||0),orders:a.orders+(+x.order_total_count||0)}),{total:0,orders:0});
+        return{label:w.label,...t};});
+      (await pool(sh3,2)).forEach(r=>{if(r)d.shopify[r.label]=r.total>0?{total:r.total,orders:r.orders}:null;});
+      WINDOWS.forEach(w=>{if(!d.shopify[w.label])d.shopify[w.label]=null;});
     }else{d.labels.forEach(l=>d.shopify[l]=null);}
+    step.textContent='Phase 3 ✓';
 
-    /* ═══════════════════════════════════════
-       PHASE 4: Creative fatigue — 4 weeks, each pulled in 3-day ad-level chunks
-       ═══════════════════════════════════════ */
-    step.textContent='Phase 4/5 · Creative fatigue…';
-    try{
-      const now=new Date();
-      const adWeeks={};
-      const weekNums=[];
+    /* ═══ PHASE 4: Creative fatigue — 2 weeks, 3-day chunks PARALLEL ═══ */
+    step.textContent='Phase 4/5 · Fatigue…';
+    try{const now=new Date(),adWeeks={},weekNums=[],p4=[];
       for(let wi=1;wi>=0;wi--){
-        const wEnd=new Date(now.getTime()-(wi*7)*86400000);
-        const wStart=new Date(wEnd.getTime()-7*86400000);
-        const wk=getISOWeek(wStart);
-        if(!weekNums.includes(wk))weekNums.push(wk);
-        // Pull this week in 3-day chunks (no date field = faster)
-        let cur=new Date(wStart);
-        let chunkN=0;
-        while(cur<wEnd){
-          const chunkEnd=new Date(Math.min(cur.getTime()+3*86400000,wEnd.getTime()));
-          const cf=cur.toISOString().slice(0,10),ct=chunkEnd.toISOString().slice(0,10);
-          chunkN++;
-          try{
-            step.textContent='Phase 4 · Week '+(4-wi)+' chunk '+chunkN+'…';
-            const rows=await wfetch('facebook',{date_from:cf,date_to:ct,
-              fields:'account_id,ad_name,spend,impressions,clicks,actions_purchase,action_values_purchase'});
-            rows.filter(r=>String(r.account_id)===String(acMeta)).forEach(r=>{
-              const key=r.ad_name;
-              adWeeks[key]=adWeeks[key]||{ad:r.ad_name,weeks:{},tot:{sp:0,im:0,cl:0,pu:0,rev:0,vv:0}};
-              const w=adWeeks[key].weeks[wk]=adWeeks[key].weeks[wk]||{sp:0,im:0,cl:0,pu:0,rev:0,vv:0,atc:0,ic:0};
-              w.sp+=+r.spend||0;w.im+=+r.impressions||0;w.cl+=+r.clicks||0;
-              w.pu+=+r.actions_purchase||0;w.rev+=+r.action_values_purchase||0;
-              const t=adWeeks[key].tot;t.sp+=+r.spend||0;t.im+=+r.impressions||0;t.cl+=+r.clicks||0;
-              t.pu+=+r.actions_purchase||0;t.rev+=+r.action_values_purchase||0;
-            });
-          }catch(e3){console.warn('Fatigue chunk skipped:',cf,e3);}
-          cur=chunkEnd;
-        }
-      }
+        const wEnd=new Date(now.getTime()-wi*7*864e5),wStart=new Date(wEnd.getTime()-7*864e5);
+        const wk=getISOWeek(wStart);if(!weekNums.includes(wk))weekNums.push(wk);
+        for(const[cf,ct] of chunks(wStart.toISOString().slice(0,10),wEnd.toISOString().slice(0,10),3)){
+          const weekNum=wk;
+          p4.push(async()=>{const r=await wfetch('facebook',{date_from:cf,date_to:ct,
+            fields:'account_id,ad_name,spend,impressions,clicks,actions_purchase,action_values_purchase'});
+            return{wk:weekNum,rows:r.filter(x=>String(x.account_id)===String(acMeta))};});}}
+      (await pool(p4,3)).filter(Boolean).forEach(({wk,rows})=>{rows.forEach(r=>{
+        const key=r.ad_name;adWeeks[key]=adWeeks[key]||{ad:r.ad_name,weeks:{},tot:{sp:0,im:0,cl:0,pu:0,rev:0,vv:0}};
+        const w=adWeeks[key].weeks[wk]=adWeeks[key].weeks[wk]||{sp:0,im:0,cl:0,pu:0,rev:0,vv:0,atc:0,ic:0};
+        w.sp+=+r.spend||0;w.im+=+r.impressions||0;w.cl+=+r.clicks||0;w.pu+=+r.actions_purchase||0;w.rev+=+r.action_values_purchase||0;
+        const t=adWeeks[key].tot;t.sp+=+r.spend||0;t.im+=+r.impressions||0;t.cl+=+r.clicks||0;t.pu+=+r.actions_purchase||0;t.rev+=+r.action_values_purchase||0;});});
       const weeks=weekNums;
-      const fatAds=Object.values(adWeeks).filter(a=>{
-        const active=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;
-        return active>=1 && a.tot.sp>1000;
-      }).sort((a,b)=>b.tot.sp-a.tot.sp).slice(0,20);
-      fatAds.forEach(a=>{
-        weeks.forEach(w=>{a.weeks[w]=a.weeks[w]||{sp:0,im:0,cl:0,pu:0,rev:0,vv:0,atc:0,ic:0};});
+      const fatAds=Object.values(adWeeks).filter(a=>{const ac=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;return ac>=1&&a.tot.sp>1000;}).sort((a,b)=>b.tot.sp-a.tot.sp).slice(0,20);
+      fatAds.forEach(a=>{weeks.forEach(w=>{a.weeks[w]=a.weeks[w]||{sp:0,im:0,cl:0,pu:0,rev:0,vv:0,atc:0,ic:0};});
         const wd=weeks.map(w=>fatDerive(a.weeks[w]));
-        const first=wd[0].sp,last=wd[wd.length-1].sp;
-        const firstPu=wd[0].pu,lastPu=wd[wd.length-1].pu;
-        const firstCpm=wd[0].cpm,lastCpm=wd[wd.length-1].cpm;
+        const first=wd[0].sp,last=wd[wd.length-1].sp,firstPu=wd[0].pu,lastPu=wd[wd.length-1].pu,firstCpm=wd[0].cpm,lastCpm=wd[wd.length-1].cpm;
         if(last<first*0.4){a.signal='Throttled ↓';a.reason='Spend cut sharply';}
         else if(lastPu>=firstPu*1.03&&last>=first*0.8){a.signal='Scaling ✅';a.reason='Spend & purchases rising';}
         else if(a.tot.sp>5000&&a.tot.pu<2){a.signal='Weak 🔴';a.reason='High spend, low purchases';}
         else if(lastPu<firstPu*0.7||lastCpm>firstCpm*1.15){a.signal='Fatigue ⚠️';a.reason='Purchases down or CPM up';}
         else{a.signal='Steady •';a.reason='No strong signal';}
-        a.prod=classifyProduct(a.ad);
-      });
+        a.prod=classifyProduct(a.ad);});
       d.weeklyFatigue={weeks,ads:fatAds};
-
-      // Starved/under-funded
-      const starved=Object.values(adWeeks).filter(a=>{
-        const active=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;
-        return active>=1 && a.tot.sp<2500 && a.tot.sp>20;
-      }).sort((a,b)=>b.tot.sp-a.tot.sp).map(a=>{
-        const active=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;
-        const hook=a.tot.im?(a.tot.vv/a.tot.im*100):0;
-        const ctr=a.tot.im?(a.tot.cl/a.tot.im*100):0;
-        const roas=a.tot.sp?a.tot.rev/a.tot.sp:0;
-        let verdict;
-        if(hook>40&&ctr<1.5)verdict='Awareness boost (not sales)';
-        else if(ctr>2.5||a.tot.pu>0)verdict='Rescue → new ad set';
-        else verdict='Let die / low merit';
-        return{ad:a.ad,prod:classifyProduct(a.ad),sp:Math.round(a.tot.sp),avg_wk:Math.round(a.tot.sp/active),
-          active,hook,ctr,pu:Math.round(a.tot.pu),rev:Math.round(a.tot.rev),roas,verdict};
-      });
+      const starved=Object.values(adWeeks).filter(a=>{const ac=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;return ac>=1&&a.tot.sp<2500&&a.tot.sp>20;}).sort((a,b)=>b.tot.sp-a.tot.sp).map(a=>{
+        const ac=weeks.filter(w=>a.weeks[w]&&a.weeks[w].sp>0).length;
+        const hook=a.tot.im?(a.tot.vv/a.tot.im*100):0,ctr=a.tot.im?(a.tot.cl/a.tot.im*100):0,roas=a.tot.sp?a.tot.rev/a.tot.sp:0;
+        let verdict;if(hook>40&&ctr<1.5)verdict='Awareness boost (not sales)';
+        else if(ctr>2.5||a.tot.pu>0)verdict='Rescue → new ad set';else verdict='Let die / low merit';
+        return{ad:a.ad,prod:classifyProduct(a.ad),sp:Math.round(a.tot.sp),avg_wk:Math.round(a.tot.sp/ac),active:ac,hook,ctr,pu:Math.round(a.tot.pu),rev:Math.round(a.tot.rev),roas,verdict};});
       d.weeklyStarved={ads:starved};
-    }catch(e){console.warn('Fatigue analysis skipped:',e);}
+    }catch(e){console.warn('Fatigue skipped:',e);}
+    step.textContent='Phase 4 ✓';
 
-    /* ═══════════════════════════════════════
        PHASE 5: Planner baselines
        ═══════════════════════════════════════ */
     step.textContent='Phase 5/5 · Computing planner…';
